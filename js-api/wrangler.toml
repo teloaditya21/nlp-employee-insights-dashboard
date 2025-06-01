@@ -1,0 +1,18 @@
+name = "employee-insights-api"
+main = "src/index.js"
+compatibility_date = "2023-12-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "employee-insights"
+database_id = "1bb5e7b7-3a9c-4db0-b47d-932a475b13a8"
+
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "chatnlp"
+
+[ai]
+binding = "AI"
+
+[vars]
+ENVIRONMENT = "production"

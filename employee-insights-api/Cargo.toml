@@ -1,0 +1,17 @@
+[package]
+name = "employee-insights-api"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+worker = "0.3.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["macros"] }
+console_error_panic_hook = "0.1.7"
+
+[profile.release]
+lto = true 

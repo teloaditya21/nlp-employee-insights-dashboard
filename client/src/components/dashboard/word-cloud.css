@@ -1,0 +1,52 @@
+.word-cloud-container {
+  position: relative;
+  overflow: hidden;
+  background: #fefefe;
+}
+
+.word-cloud-inner {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.word-item {
+  position: absolute;
+  transform-origin: center;
+  transition: transform 0.3s ease, color 0.3s ease;
+  text-align: center;
+  padding: 4px;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.word-item:hover {
+  transform: translate(-50%, -50%) scale(1.15) !important;
+  color: #0984E3 !important;
+  z-index: 10;
+  cursor: pointer;
+}
+
+.zoom-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #2D3436;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.zoom-button:hover {
+  background-color: #f7fafc;
+  border-color: #cbd5e0;
+  color: #0984E3;
+}
+
+.zoom-button:active {
+  transform: scale(0.95);
+}
