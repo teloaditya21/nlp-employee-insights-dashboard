@@ -7,6 +7,7 @@ import { Eye, EyeOff, User, Lock } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { API_CONFIG } from "@/utils/constants";
 import nlpLogo from "../assets/logo-nlp.webp";
 // Import gambar lokal
 import techImage1 from "../assets/shubham-dhage-T9rKvI3N0NM-unsplash.jpg";
@@ -93,6 +94,21 @@ export default function Login() {
     };
   }, [api]);
 
+  // Test API connectivity on component mount
+  useEffect(() => {
+    const testAPI = async () => {
+      try {
+        console.log('Testing API connectivity to:', `${API_CONFIG.BASE_URL}/health`);
+        const response = await fetch(`${API_CONFIG.BASE_URL}/health`);
+        const data = await response.json();
+        console.log('API Health Check Success:', data);
+      } catch (error) {
+        console.error('API Health Check Failed:', error);
+      }
+    };
+    testAPI();
+  }, []);
+
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -105,11 +121,15 @@ export default function Login() {
     setIsLoading(true);
     setErrorMessage(null);
 
+    console.log('Form submitted with values:', values);
+
     try {
       const success = await login({
         username: values.username,
         password: values.password
       });
+
+      console.log('Login result:', success);
 
       if (success) {
         setLocation("/survey-dashboard");
@@ -118,7 +138,7 @@ export default function Login() {
       }
     } catch (error) {
       setErrorMessage("An error occurred. Please try again.");
-      console.error(error);
+      console.error('Login error:', error);
     } finally {
       setIsLoading(false);
     }

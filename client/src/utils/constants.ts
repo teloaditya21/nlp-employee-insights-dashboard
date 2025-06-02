@@ -280,7 +280,7 @@ const getEnvironment = (): 'DEVELOPMENT' | 'STAGING' | 'PRODUCTION' => {
 
 export const ENV_CONFIG = {
   DEVELOPMENT: {
-    API_BASE_URL: import.meta.env?.VITE_API_BASE_URL || 'http://localhost:8787',
+    API_BASE_URL: import.meta.env?.VITE_API_BASE_URL || 'https://employee-insights-api.adityalasika.workers.dev',
     ENABLE_LOGGING: true,
     ENABLE_DEBUG: true,
   },
@@ -304,6 +304,15 @@ export const CURRENT_CONFIG = ENV_CONFIG[CURRENT_ENV];
 Object.assign(API_CONFIG, {
   BASE_URL: CURRENT_CONFIG.API_BASE_URL,
 });
+
+// Debug logging
+console.log('=== API CONFIGURATION DEBUG ===');
+console.log('Environment Mode:', import.meta.env?.MODE);
+console.log('VITE_API_BASE_URL:', import.meta.env?.VITE_API_BASE_URL);
+console.log('Detected Environment:', CURRENT_ENV);
+console.log('API Base URL:', API_CONFIG.BASE_URL);
+console.log('Environment Config:', CURRENT_CONFIG);
+console.log('=== END DEBUG ===');
 
 // Regular Expressions
 export const REGEX_PATTERNS = {

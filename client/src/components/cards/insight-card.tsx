@@ -44,9 +44,13 @@ interface InsightItemProps {
   onRemove?: (id: number) => void;
   onPin?: (insight: InsightData) => void;
   isPinned?: boolean;
+  dateRange?: {
+    from?: Date;
+    to?: Date;
+  };
 }
 
-export function InsightItem({ insight, onRemove, onPin, isPinned = false }: InsightItemProps) {
+export function InsightItem({ insight, onRemove, onPin, isPinned = false, dateRange }: InsightItemProps) {
   const [showDetails, setShowDetails] = useState(false);
   const [selectedInsight, setSelectedInsight] = useState<string | null>(null);
 
@@ -64,11 +68,27 @@ export function InsightItem({ insight, onRemove, onPin, isPinned = false }: Insi
 
   // Fetch detailed data from employee_insights when dialog is opened
   const { data: insightDetails, isLoading: isDetailsLoading } = useQuery({
-    queryKey: [`/api/insights/details/${insight.title}`, showDetails],
+    queryKey: [`/api/insights/details/${insight.title}`, showDetails, dateRange],
     queryFn: async () => {
       if (!showDetails) return null;
-      // Request up to 100 items to ensure we get all data available
-      const response = await fetch(`https://employee-insights-api.adityalasika.workers.dev/api/insights/details/${encodeURIComponent(insight.title)}?limit=100`);
+
+      // Build query parameters
+      const params = new URLSearchParams();
+      params.append('limit', '100');
+
+      if (dateRange?.from) {
+        params.append('dateFrom', dateRange.from.toISOString().split('T')[0]);
+        if (dateRange.to) {
+          params.append('dateTo', dateRange.to.toISOString().split('T')[0]);
+        } else {
+          params.append('dateTo', dateRange.from.toISOString().split('T')[0]);
+        }
+      }
+
+      const queryString = params.toString();
+      const url = `https://employee-insights-api.adityalasika.workers.dev/api/insights/details/${encodeURIComponent(insight.title)}?${queryString}`;
+
+      const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch insight details');
       return response.json();
     },
@@ -348,6 +368,10 @@ export interface SentimentCategoryProps {
   onRemoveInsight?: (id: number) => void;
   onPinInsight?: (insight: InsightData) => void;
   className?: string;
+  dateRange?: {
+    from?: Date;
+    to?: Date;
+  };
 }
 
 export function SentimentCategoryCard({
@@ -358,6 +382,7 @@ export function SentimentCategoryCard({
   onRemoveInsight,
   onPinInsight,
   className,
+  dateRange,
 }: SentimentCategoryProps) {
   const getBadgeColor = () => {
     switch (type) {
@@ -390,6 +415,7 @@ export function SentimentCategoryCard({
           insight={insight}
           onRemove={onRemoveInsight}
           onPin={onPinInsight}
+          dateRange={dateRange}
         />
       ))}
     </div>

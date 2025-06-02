@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Deployment script for Sentiment Sphere to Cloudflare
-# This script deploys both the API (Workers) and Frontend (Pages)
+# Deployment script for NLP Employee Insights Dashboard to Cloudflare
+# This script deploys both the Hono.js API (Workers) and Frontend (Pages)
 
 set -e  # Exit on any error
 
@@ -48,8 +48,8 @@ fi
 
 print_success "Cloudflare authentication verified"
 
-# Step 1: Deploy the API (Workers)
-print_status "Deploying API (Cloudflare Workers)..."
+# Step 1: Deploy the Hono.js API (Workers)
+print_status "Deploying Hono.js API (Cloudflare Workers)..."
 cd js-api
 
 # Install dependencies if needed
@@ -63,9 +63,9 @@ print_status "Deploying worker to Cloudflare..."
 npm run deploy
 
 if [ $? -eq 0 ]; then
-    print_success "API deployed successfully!"
+    print_success "Hono.js API deployed successfully!"
 else
-    print_error "API deployment failed!"
+    print_error "Hono.js API deployment failed!"
     exit 1
 fi
 
@@ -121,7 +121,7 @@ echo ""
 echo "🎉 Deployment completed successfully!"
 echo ""
 echo "📋 Deployment Summary:"
-echo "├── API (Workers): https://employee-insights-api.adityalasika.workers.dev"
+echo "├── Hono.js API (Workers): https://employee-insights-api.adityalasika.workers.dev"
 echo "├── Frontend (Pages): https://employee-insights-frontend.pages.dev"
 echo "└── Database: D1 (employee-insights)"
 echo ""

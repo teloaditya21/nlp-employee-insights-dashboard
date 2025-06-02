@@ -116,6 +116,26 @@ class EmployeeInsightsAPI {
     return this.request(`/api/insights/search/${encodeURIComponent(word)}`);
   }
 
+  // Get filtered insights summary with date range
+  async getFilteredInsights(filters: {
+    dateFrom?: string;
+    dateTo?: string;
+    search?: string;
+    sentiment?: string;
+  }): Promise<ApiResponse<InsightSummary[]>> {
+    const params = new URLSearchParams();
+
+    if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
+    if (filters.dateTo) params.append('dateTo', filters.dateTo);
+    if (filters.search) params.append('search', filters.search);
+    if (filters.sentiment && filters.sentiment !== 'all') params.append('sentiment', filters.sentiment);
+
+    const queryString = params.toString();
+    const endpoint = queryString ? `/api/insights/filtered?${queryString}` : '/api/insights/summary';
+
+    return this.request(endpoint);
+  }
+
   // Get paginated insights
   async getPaginatedInsights(page: number = 1, limit: number = 10): Promise<PaginatedResponse<InsightSummary[]>> {
     return this.request(`/api/insights/paginated?page=${page}&limit=${limit}`);

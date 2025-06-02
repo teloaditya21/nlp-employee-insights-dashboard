@@ -5,12 +5,16 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { ErrorBoundary } from "@/components/common";
-import { useDashboardStats, useAllInsights, useFilters, useErrorHandler, usePageContext, useSearchInsights } from "@/hooks";
+import { useDashboardStats, useAllInsights, useFilters, useErrorHandler, usePageContext, useSearchInsights, useFilteredInsights } from "@/hooks";
 import { FilterOptions, InsightData, SentimentType } from "@/types";
 import { convertToInsightData, determineSentiment } from "@/utils/helpers";
 import { formatNumber, formatPercentage } from "@/utils/formatters";
 import { Button } from "@/components/ui/button";
-import { Filter, ChevronDown } from "lucide-react";
+import { Filter, ChevronDown, CalendarIcon, X } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { DateRange } from "react-day-picker";
 
 // Direct imports instead of lazy loading to avoid Suspense issues
 import Header from "@/components/layout/header";
@@ -22,11 +26,6 @@ import Chatbot from "@/components/dashboard/chatbot";
 // UI components
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -34,64 +33,54 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Fungsi untuk menghasilkan teks AI conclusion berdasarkan statistik
-function generateAIConclusionText(stats: any): string {
-  if (!stats) {
-    return "Belum ada data yang tersedia untuk dianalisis.";
-  }
 
-  const positivePercent = Math.round(stats.positive_ratio);
-  const negativePercent = Math.round(stats.negative_ratio);
-  const neutralPercent = Math.round(stats.neutral_ratio);
-
-  // Identifikasi sentiment dominan
-  let dominantSentiment = "netral";
-  let dominantPercent = neutralPercent;
-
-  if (positivePercent > negativePercent && positivePercent > neutralPercent) {
-    dominantSentiment = "positif";
-    dominantPercent = positivePercent;
-  } else if (negativePercent > positivePercent && negativePercent > neutralPercent) {
-    dominantSentiment = "negatif";
-    dominantPercent = negativePercent;
-  }
-
-  // Top positive insights
-  const topPositiveInsights = stats.top_positive_insights?.slice(0, 3) || [];
-  const topPositiveText = topPositiveInsights.map((insight: any) =>
-    `${insight.word_insight} (${insight.positif_percentage}%)`
-  ).join(", ");
-
-  // Top negative insights
-  const topNegativeInsights = stats.top_negative_insights?.slice(0, 3) || [];
-  const topNegativeText = topNegativeInsights.map((insight: any) =>
-    `${insight.word_insight} (${insight.negatif_percentage}%)`
-  ).join(", ");
-
-  return `
-    Dari total ${stats.total_insights} kategori insight dengan ${stats.total_feedback} feedback karyawan, sentimen yang dominan adalah ${dominantSentiment} (${dominantPercent}%).
-    Terdapat ${stats.sentiment_distribution.positive} feedback positif (${positivePercent}%), ${stats.sentiment_distribution.negative} feedback negatif (${negativePercent}%), dan ${stats.sentiment_distribution.neutral} feedback netral (${neutralPercent}%).
-
-    ${topPositiveText ? `Area dengan sentimen paling positif: ${topPositiveText}.` : ''}
-
-    ${topNegativeText ? `Area yang memerlukan perhatian: ${topNegativeText}.` : ''}
-
-    Hasil analisis ini menunjukkan bahwa sentimen karyawan secara umum ${dominantSentiment}, dengan beberapa area yang perlu mendapat fokus perbaikan segera.
-  `;
-}
 
 export default function SurveyDashboard() {
   // Filter state - search term dan filter baru
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [selectedSentiment, setSelectedSentiment] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+
+  // Prepare filters for API
+  const apiFilters = useMemo(() => {
+    const filters: any = {};
+
+    if (dateRange?.from) {
+      filters.dateFrom = dateRange.from.toISOString().split('T')[0];
+      if (dateRange.to) {
+        filters.dateTo = dateRange.to.toISOString().split('T')[0];
+      } else {
+        filters.dateTo = dateRange.from.toISOString().split('T')[0];
+      }
+    }
+
+    if (searchTerm) {
+      filters.search = searchTerm;
+    }
+
+    if (selectedSentiment !== 'all') {
+      filters.sentiment = selectedSentiment;
+    }
+
+    return filters;
+  }, [dateRange, searchTerm, selectedSentiment]);
+
+  // Determine if we should use filtered data
+  const hasFilters = Boolean(dateRange?.from || searchTerm || selectedSentiment !== 'all');
 
   // Fetch data menggunakan custom hooks
   const dashboard = useDashboardStats();
   const allInsights = useAllInsights();
-  const isLoading = dashboard.isLoading || allInsights.isLoading;
-  const isError = dashboard.isError || allInsights.isError;
-  const error = dashboard.error || allInsights.error;
+  const filteredInsights = useFilteredInsights(apiFilters, hasFilters);
+
+  // Use filtered data if filters are active, otherwise use all insights
+  const currentInsights = hasFilters ? filteredInsights : allInsights;
+
+  const isLoading = dashboard.isLoading || currentInsights.isLoading;
+  const isError = dashboard.isError || currentInsights.isError;
+  const error = dashboard.error || currentInsights.error;
 
   // Page context tracking hook
   const {
@@ -103,19 +92,16 @@ export default function SurveyDashboard() {
     error: pageContextError
   } = usePageContext('survey-dashboard');
 
-  // Search insights (hanya jika ada search term)
-  const { data: searchResults } = useSearchInsights(searchTerm, searchTerm.length > 2);
-
   // Track page data changes when filters or data change (with debounce)
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (dashboard.data?.data && allInsights.data?.data) {
+      if (dashboard.data?.data && currentInsights.data?.data) {
         try {
           const dashboardData = dashboard.data.data;
-          const insightsData = allInsights.data.data;
+          const insightsData = currentInsights.data.data;
 
           // Calculate sentiment counts from current filtered data
-          const filteredInsights = searchResults?.data || insightsData;
+          const filteredInsights = insightsData;
           const sentimentCounts = {
             positive: 0,
             negative: 0,
@@ -155,6 +141,12 @@ export default function SurveyDashboard() {
           if (selectedSentiment !== "all") {
             activeFilterDescriptions.push(`sentimen: ${selectedSentiment}`);
           }
+          if (dateRange?.from) {
+            const dateRangeText = dateRange.to
+              ? `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}`
+              : format(dateRange.from, "dd/MM/yyyy");
+            activeFilterDescriptions.push(`periode: ${dateRangeText}`);
+          }
 
           // Track the current page data with enhanced filter context
           trackPageData({
@@ -162,7 +154,9 @@ export default function SurveyDashboard() {
               search: searchTerm,
               selectedTopics: selectedTopics,
               selectedSentiment: selectedSentiment,
-              dateRange: 'All Time',
+              dateRange: dateRange?.from ? (dateRange.to
+                ? `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}`
+                : format(dateRange.from, "dd/MM/yyyy")) : 'All Time',
               activeFilterDescriptions: activeFilterDescriptions
             },
             insights: filteredInsights,
@@ -179,11 +173,11 @@ export default function SurveyDashboard() {
     return () => clearTimeout(timeoutId);
   }, [
     dashboard.data,
-    allInsights.data,
-    searchResults,
+    currentInsights.data,
     searchTerm,
     selectedTopics,
     selectedSentiment,
+    dateRange,
     trackPageData
   ]);
 
@@ -195,10 +189,10 @@ export default function SurveyDashboard() {
       neutral: [] as InsightData[],
     };
 
-    // Gunakan search results jika ada, otherwise gunakan all insights
-    let insightsToProcess = searchResults?.data || allInsights.data?.data || [];
+    // Use current insights (filtered or all) - API already handles date/search/sentiment filtering
+    let insightsToProcess = currentInsights.data?.data || [];
 
-    // Filter berdasarkan selected topics jika ada yang dipilih
+    // Only apply topic filtering on frontend since API doesn't handle this yet
     if (selectedTopics.length > 0) {
       insightsToProcess = insightsToProcess.filter(insight =>
         selectedTopics.includes(insight.word_insight)
@@ -222,10 +216,7 @@ export default function SurveyDashboard() {
         dominantSentiment = "negative";
       }
 
-      // Filter berdasarkan selected sentiment
-      if (selectedSentiment !== "all" && dominantSentiment !== selectedSentiment) {
-        return; // Skip jika tidak sesuai filter sentimen
-      }
+      // Note: Sentiment filtering is now handled by the API
 
       // Add to appropriate category berdasarkan dominant sentiment
       if (dominantSentiment === "positive") {
@@ -243,7 +234,7 @@ export default function SurveyDashboard() {
     result.neutral.sort((a, b) => b.views - a.views);
 
     return result;
-  }, [allInsights.data, searchResults, selectedTopics, selectedSentiment]);
+  }, [currentInsights.data, selectedTopics]);
 
   // Handler for removing insights
   const handleRemoveInsight = (id: number) => {
@@ -292,10 +283,10 @@ export default function SurveyDashboard() {
 
   // Get unique topics untuk filter checkbox
   const uniqueTopics = useMemo(() => {
-    const allTopics = allInsights.data?.data || [];
+    const allTopics = currentInsights.data?.data || [];
     const topics = allTopics.map(insight => insight.word_insight);
     return Array.from(new Set(topics)).sort();
-  }, [allInsights.data]);
+  }, [currentInsights.data]);
 
   // Handler untuk topic filter
   const handleTopicToggle = (topic: string) => {
@@ -316,6 +307,37 @@ export default function SurveyDashboard() {
     setSelectedTopics([]);
     setSelectedSentiment("all");
     setSearchTerm("");
+    setDateRange(undefined);
+  };
+
+  // Date range handlers
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    setDateRange(range);
+    setIsDatePickerOpen(false);
+  };
+
+  const setPresetRange = (preset: 'week' | 'month' | 'quarter') => {
+    const now = new Date();
+    const from = new Date();
+
+    switch (preset) {
+      case 'week':
+        from.setDate(now.getDate() - 7);
+        break;
+      case 'month':
+        from.setMonth(now.getMonth() - 1);
+        break;
+      case 'quarter':
+        from.setMonth(now.getMonth() - 3);
+        break;
+    }
+
+    setDateRange({ from, to: now });
+    setIsDatePickerOpen(false);
+  };
+
+  const clearDateRange = () => {
+    setDateRange(undefined);
   };
 
   // Loading state
@@ -373,15 +395,7 @@ export default function SurveyDashboard() {
           className="mb-6"
         />
 
-        {/* Legacy AI Conclusion (fallback) */}
-        {!aiConclusion && (
-          <div className="bg-white rounded-[12px] p-6 mb-6 shadow-[0_10px_20px_rgba(0,0,0,0.05)]">
-            <h3 className="text-lg font-semibold mb-3 text-gray-800">AI Insight Analysis (Legacy)</h3>
-            <p className="text-gray-600 leading-relaxed">
-              {generateAIConclusionText(dashboardData)}
-            </p>
-          </div>
-        )}
+
 
         {/* Page Context Error */}
         {pageContextError && (
@@ -393,109 +407,188 @@ export default function SurveyDashboard() {
           </div>
         )}
 
-        {/* Search Topics Control dengan Filter */}
+        {/* Search and Filter Controls */}
         <div className="bg-white rounded-[12px] p-4 mb-6 shadow-[0_10px_20px_rgba(0,0,0,0.05)]">
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
             {/* Search Input */}
             <div className="flex-1 relative">
               <input
                 type="text"
-                placeholder="Cari topics... (contoh: wellness, gaji, fasilitas, program mentoring)"
+                placeholder="Cari insights... (contoh: wellness, gaji, fasilitas, program mentoring)"
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
               {searchTerm && (
                 <button
                   onClick={handleClearSearch}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               )}
             </div>
 
-            {/* Filter All Topics dengan Checkbox */}
-            <div className="relative">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full sm:w-auto min-w-[180px] justify-between bg-white border-gray-300 rounded-lg shadow-sm px-4 py-2"
-                  >
-                    <div className="flex items-center">
-                      <Filter className="h-4 w-4 mr-2 text-gray-400" />
-                      <span className="text-sm">
-                        All Topics {selectedTopics.length > 0 && `(${selectedTopics.length})`}
-                      </span>
+            {/* Filter Controls Row */}
+            <div className="flex flex-wrap gap-3 items-center">
+              {/* All Witel Filter */}
+              <div className="relative">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="h-9 px-3 text-sm border-gray-300 bg-white hover:bg-gray-50 min-w-[120px] justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Filter className="h-3 w-3 text-gray-400" />
+                        <span>All Witel</span>
+                      </div>
+                      <ChevronDown className="h-3 w-3 text-gray-400" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-0" align="start">
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-medium">Pilih Topics</h4>
+                        <button
+                          onClick={() => setSelectedTopics([])}
+                          className="text-xs text-blue-600 hover:text-blue-800"
+                        >
+                          Clear All
+                        </button>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto space-y-2">
+                        {uniqueTopics.map((topic) => (
+                          <div key={topic} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={topic}
+                              checked={selectedTopics.includes(topic)}
+                              onCheckedChange={() => handleTopicToggle(topic)}
+                            />
+                            <label
+                              htmlFor={topic}
+                              className="text-sm text-gray-700 cursor-pointer flex-1"
+                            >
+                              {topic}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <ChevronDown className="h-4 w-4 text-gray-400" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 p-0" align="start">
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-sm font-medium">Pilih Topics</h4>
-                      <button
-                        onClick={() => setSelectedTopics([])}
-                        className="text-xs text-blue-600 hover:text-blue-800"
-                      >
-                        Clear All
-                      </button>
-                    </div>
-                    <div className="max-h-64 overflow-y-auto space-y-2">
-                      {uniqueTopics.map((topic) => (
-                        <div key={topic} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={topic}
-                            checked={selectedTopics.includes(topic)}
-                            onCheckedChange={() => handleTopicToggle(topic)}
-                          />
-                          <label
-                            htmlFor={topic}
-                            className="text-sm text-gray-700 cursor-pointer flex-1"
-                          >
-                            {topic}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
 
-            {/* Filter Sentimen */}
-            <div className="relative">
-              <Select value={selectedSentiment} onValueChange={handleSentimentChange}>
-                <SelectTrigger className="w-full sm:w-auto min-w-[140px] bg-white border-gray-300 rounded-lg shadow-sm px-4 py-2">
-                  <div className="flex items-center">
-                    <Filter className="h-4 w-4 mr-2 text-gray-400" />
-                    <SelectValue placeholder="Sentimen" className="text-sm" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Sentiments</SelectItem>
-                  <SelectItem value="positive">Positif</SelectItem>
-                  <SelectItem value="negative">Negatif</SelectItem>
-                  <SelectItem value="neutral">Netral</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              {/* All Sources Filter */}
+              <div className="relative">
+                <Select value={selectedSentiment} onValueChange={handleSentimentChange}>
+                  <SelectTrigger className="h-9 px-3 text-sm border-gray-300 bg-white hover:bg-gray-50 min-w-[130px]">
+                    <div className="flex items-center gap-2">
+                      <Filter className="h-3 w-3 text-gray-400" />
+                      <SelectValue placeholder="All Sources" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sources</SelectItem>
+                    <SelectItem value="positive">Positif</SelectItem>
+                    <SelectItem value="negative">Negatif</SelectItem>
+                    <SelectItem value="neutral">Netral</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Clear All Filters Button */}
-            {(selectedTopics.length > 0 || selectedSentiment !== "all" || searchTerm) && (
+              {/* Date Range Filter */}
+              <div className="relative">
+                <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="h-9 px-3 text-sm border-gray-300 bg-white hover:bg-gray-50 min-w-[160px] justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon className="h-3 w-3 text-gray-400" />
+                        <span>
+                          {dateRange?.from ? (
+                            dateRange.to ? (
+                              `${format(dateRange.from, "dd/MM/yy")} - ${format(dateRange.to, "dd/MM/yy")}`
+                            ) : (
+                              format(dateRange.from, "dd/MM/yy")
+                            )
+                          ) : (
+                            "Select date range"
+                          )}
+                        </span>
+                      </div>
+                      <ChevronDown className="h-3 w-3 text-gray-400" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <div className="p-3 border-b">
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPresetRange('week')}
+                        >
+                          7 Hari
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPresetRange('month')}
+                        >
+                          30 Hari
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPresetRange('quarter')}
+                        >
+                          90 Hari
+                        </Button>
+                      </div>
+                    </div>
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={dateRange?.from}
+                      selected={dateRange}
+                      onSelect={handleDateRangeChange}
+                      numberOfMonths={2}
+                    />
+                    {dateRange?.from && (
+                      <div className="p-3 border-t">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={clearDateRange}
+                          className="w-full"
+                        >
+                          Clear Date Range
+                        </Button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          </div>
+
+          {/* Clear All Filters Button */}
+          {(selectedTopics.length > 0 || selectedSentiment !== "all" || searchTerm || dateRange?.from) && (
+            <div className="mt-3 flex justify-end">
               <Button
                 onClick={handleClearFilters}
-                variant="outline"
-                className="w-full sm:w-auto px-4 py-2 text-gray-600 border-gray-300 hover:bg-gray-50"
+                variant="ghost"
+                size="sm"
+                className="text-gray-500 hover:text-gray-700 text-xs"
               >
-                Reset All
+                Clear all filters
               </Button>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Search Results Info */}
           {searchTerm && (
@@ -517,16 +610,19 @@ export default function SurveyDashboard() {
           )}
 
           {/* Filter Status Info */}
-          {!searchTerm && (selectedTopics.length > 0 || selectedSentiment !== "all") && (
+          {!searchTerm && (selectedTopics.length > 0 || selectedSentiment !== "all" || dateRange?.from) && (
             <div className="mt-3 text-sm text-blue-600">
               🔽 Filter aktif:
               {selectedTopics.length > 0 && ` ${selectedTopics.length} topics dipilih`}
               {selectedSentiment !== "all" && ` • Sentimen: ${selectedSentiment}`}
+              {dateRange?.from && ` • Periode: ${dateRange.to
+                ? `${format(dateRange.from, "dd/MM/yy")} - ${format(dateRange.to, "dd/MM/yy")}`
+                : format(dateRange.from, "dd/MM/yyyy")}`}
             </div>
           )}
 
           {/* Show all topics hint when not searching or filtering */}
-          {!searchTerm && selectedTopics.length === 0 && selectedSentiment === "all" && (
+          {!searchTerm && selectedTopics.length === 0 && selectedSentiment === "all" && !dateRange?.from && (
             <div className="mt-3 text-sm text-gray-500">
               💡 Menampilkan semua {dashboardData?.total_insights || 0} topics. Gunakan pencarian atau filter untuk results spesifik.
             </div>
@@ -536,20 +632,43 @@ export default function SurveyDashboard() {
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-[12px] p-4 shadow-[0_10px_20px_rgba(0,0,0,0.05)]">
-            <h4 className="text-sm font-medium text-gray-600">Total Topics</h4>
-            <p className="text-2xl font-bold text-gray-900">{dashboardData?.total_insights || 0}</p>
+            <h4 className="text-sm font-medium text-gray-600">
+              {(selectedTopics.length > 0 || selectedSentiment !== "all" || searchTerm || dateRange?.from)
+                ? "Filtered Topics" : "Total Topics"}
+            </h4>
+            <p className="text-2xl font-bold text-gray-900">
+              {(selectedTopics.length > 0 || selectedSentiment !== "all" || searchTerm || dateRange?.from)
+                ? totalInsights : (dashboardData?.total_insights || 0)}
+            </p>
           </div>
           <div className="bg-white rounded-[12px] p-4 shadow-[0_10px_20px_rgba(0,0,0,0.05)]">
-            <h4 className="text-sm font-medium text-gray-600">Total Feedback</h4>
-            <p className="text-2xl font-bold text-gray-900">{dashboardData?.total_feedback || 0}</p>
+            <h4 className="text-sm font-medium text-gray-600">
+              {(selectedTopics.length > 0 || selectedSentiment !== "all" || searchTerm || dateRange?.from)
+                ? "Filtered Feedback" : "Total Feedback"}
+            </h4>
+            <p className="text-2xl font-bold text-gray-900">
+              {(selectedTopics.length > 0 || selectedSentiment !== "all" || searchTerm || dateRange?.from)
+                ? (categories.positive.reduce((sum, item) => sum + item.views, 0) +
+                   categories.negative.reduce((sum, item) => sum + item.views, 0) +
+                   categories.neutral.reduce((sum, item) => sum + item.views, 0))
+                : (dashboardData?.total_feedback || 0)}
+            </p>
           </div>
           <div className="bg-white rounded-[12px] p-4 shadow-[0_10px_20px_rgba(0,0,0,0.05)]">
             <h4 className="text-sm font-medium text-gray-600">Sentiment Positif</h4>
-            <p className="text-2xl font-bold text-green-600">{dashboardData?.positive_ratio.toFixed(1) || 0}%</p>
+            <p className="text-2xl font-bold text-green-600">
+              {totalInsights > 0
+                ? ((categories.positive.length / totalInsights) * 100).toFixed(1)
+                : (dashboardData?.positive_ratio.toFixed(1) || 0)}%
+            </p>
           </div>
           <div className="bg-white rounded-[12px] p-4 shadow-[0_10px_20px_rgba(0,0,0,0.05)]">
             <h4 className="text-sm font-medium text-gray-600">Sentiment Negatif</h4>
-            <p className="text-2xl font-bold text-red-600">{dashboardData?.negative_ratio.toFixed(1) || 0}%</p>
+            <p className="text-2xl font-bold text-red-600">
+              {totalInsights > 0
+                ? ((categories.negative.length / totalInsights) * 100).toFixed(1)
+                : (dashboardData?.negative_ratio.toFixed(1) || 0)}%
+            </p>
           </div>
         </div>
 
@@ -562,6 +681,7 @@ export default function SurveyDashboard() {
             insights={categories.neutral}
             onRemoveInsight={handleRemoveInsight}
             onPinInsight={handlePinInsight}
+            dateRange={dateRange}
           />
 
           <SentimentCategoryCard
@@ -571,6 +691,7 @@ export default function SurveyDashboard() {
             insights={categories.negative}
             onRemoveInsight={handleRemoveInsight}
             onPinInsight={handlePinInsight}
+            dateRange={dateRange}
           />
 
           <SentimentCategoryCard
@@ -580,6 +701,7 @@ export default function SurveyDashboard() {
             insights={categories.positive}
             onRemoveInsight={handleRemoveInsight}
             onPinInsight={handlePinInsight}
+            dateRange={dateRange}
           />
         </div>
 

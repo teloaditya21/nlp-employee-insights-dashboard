@@ -172,6 +172,9 @@ export function useAuth(): UseAuthReturn {
   const login = useCallback(async (credentials: LoginCredentials): Promise<boolean> => {
     dispatch({ type: 'AUTH_START' });
 
+    console.log('Login attempt with URL:', `${API_CONFIG.BASE_URL}/api/auth/login`);
+    console.log('Credentials:', credentials);
+
     try {
       const response = await fetch(`${API_CONFIG.BASE_URL}/api/auth/login`, {
         method: 'POST',
@@ -183,6 +186,9 @@ export function useAuth(): UseAuthReturn {
       });
 
       const data = await response.json();
+
+      console.log('Login response status:', response.status);
+      console.log('Login response data:', data);
 
       if (response.ok && data.success) {
         const { user, session_token } = data.data;

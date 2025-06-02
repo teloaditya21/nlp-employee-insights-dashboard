@@ -26,6 +26,7 @@ export {
   useTopPositiveInsights,
   useTopNegativeInsights,
   useSearchInsights,
+  useFilteredInsights,
   usePaginatedInsights,
   useHealthCheck,
   convertToInsightData

@@ -66,8 +66,8 @@ wrangler pages deploy dist --project-name=sentiment-sphere
 ## Environment Configuration
 
 ### Production URLs
-- **API**: `https://employee-insights-api.teloaditya21.workers.dev`
-- **Frontend**: `https://sentiment-sphere.pages.dev`
+- **Hono.js API**: `https://employee-insights-api.adityalasika.workers.dev`
+- **Frontend**: `https://employee-insights-frontend.pages.dev`
 
 ### Environment Variables
 
@@ -99,7 +99,7 @@ wrangler pages deployment list --project-name=sentiment-sphere
 
 ### Check API Health
 ```bash
-curl https://employee-insights-api.teloaditya21.workers.dev/health
+curl https://employee-insights-api.adityalasika.workers.dev/health
 ```
 
 ## Troubleshooting

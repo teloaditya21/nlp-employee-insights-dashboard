@@ -8,6 +8,7 @@ export const QUERY_KEYS = {
   topPositive: ['employee-insights', 'top-positive'],
   topNegative: ['employee-insights', 'top-negative'],
   search: (term: string) => ['employee-insights', 'search', term],
+  filtered: (filters: any) => ['employee-insights', 'filtered', filters],
   paginated: (page: number, limit: number) => ['employee-insights', 'paginated', page, limit],
   health: ['employee-insights', 'health'],
 } as const;
@@ -64,6 +65,23 @@ export function useSearchInsights(searchTerm: string, enabled: boolean = true) {
     queryFn: () => employeeInsightsAPI.searchInsights(searchTerm),
     enabled: enabled && searchTerm.length > 0,
     staleTime: 2 * 60 * 1000, // 2 minutes for search results
+    gcTime: 5 * 60 * 1000,
+    retry: 2,
+  });
+}
+
+// Hook untuk filtered insights with date range
+export function useFilteredInsights(filters: {
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+  sentiment?: string;
+}, enabled?: boolean) {
+  return useQuery({
+    queryKey: QUERY_KEYS.filtered(filters),
+    queryFn: () => employeeInsightsAPI.getFilteredInsights(filters),
+    enabled: enabled !== false, // Default to true unless explicitly false
+    staleTime: 2 * 60 * 1000, // 2 minutes for filtered results
     gcTime: 5 * 60 * 1000,
     retry: 2,
   });

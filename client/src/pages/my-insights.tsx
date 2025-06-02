@@ -2,18 +2,17 @@ import Header from "@/components/layout/header";
 import { SentimentCategoryCard, InsightData } from "@/components/cards/insight-card";
 import Chatbot from "@/components/dashboard/chatbot";
 import { useQuery } from "@tanstack/react-query";
-import { X, ChevronDown, Filter } from "lucide-react";
+import { X, ChevronDown, Filter, CalendarIcon } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { DateRange } from "react-day-picker";
 import { useBookmarkedInsights, useBookmarkOperations } from "@/hooks/useBookmarks";
 import { BookmarkedInsight } from "@/lib/bookmarkApi";
 import { MyInsightsSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -46,6 +45,8 @@ export default function MyInsights() {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [selectedSentiment, setSelectedSentiment] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
   // Get unique topics dari bookmarked insights untuk filter
   const uniqueTopics = useMemo(() => {
@@ -63,6 +64,22 @@ export default function MyInsights() {
 
     // Filter bookmarked insights berdasarkan search dan filter
     let filteredBookmarks = bookmarkedInsights;
+
+    // Note: For My Insights, we filter by bookmarked_at date (when user bookmarked it)
+    // This is different from Survey Dashboard which filters by insight creation date
+    if (dateRange?.from) {
+      const fromDate = new Date(dateRange.from);
+      fromDate.setHours(0, 0, 0, 0); // Set to start of day
+
+      const toDate = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from);
+      toDate.setHours(23, 59, 59, 999); // Set to end of day
+
+      filteredBookmarks = filteredBookmarks.filter(bookmark => {
+        if (!bookmark.bookmarked_at) return false;
+        const bookmarkDate = new Date(bookmark.bookmarked_at);
+        return bookmarkDate >= fromDate && bookmarkDate <= toDate;
+      });
+    }
 
     // Filter berdasarkan search term
     if (searchTerm.length > 0) {
@@ -113,7 +130,7 @@ export default function MyInsights() {
     categorized.neutral.sort((a, b) => b.views - a.views);
 
     return categorized;
-  }, [bookmarkedInsights, searchTerm, selectedTopics, selectedSentiment]);
+  }, [bookmarkedInsights, searchTerm, selectedTopics, selectedSentiment, dateRange]);
 
   // Search handler
   const handleSearchChange = (value: string) => {
@@ -144,6 +161,37 @@ export default function MyInsights() {
     setSelectedTopics([]);
     setSelectedSentiment("all");
     setSearchTerm("");
+    setDateRange(undefined);
+  };
+
+  // Date range handlers
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    setDateRange(range);
+    setIsDatePickerOpen(false);
+  };
+
+  const setPresetRange = (preset: 'week' | 'month' | 'quarter') => {
+    const now = new Date();
+    const from = new Date();
+
+    switch (preset) {
+      case 'week':
+        from.setDate(now.getDate() - 7);
+        break;
+      case 'month':
+        from.setMonth(now.getMonth() - 1);
+        break;
+      case 'quarter':
+        from.setMonth(now.getMonth() - 3);
+        break;
+    }
+
+    setDateRange({ from, to: now });
+    setIsDatePickerOpen(false);
+  };
+
+  const clearDateRange = () => {
+    setDateRange(undefined);
   };
 
   // Calculate total insights untuk display
@@ -203,9 +251,9 @@ export default function MyInsights() {
           </p>
         </div>
 
-        {/* Search dan Filter Controls */}
+        {/* Search and Filter Controls */}
         <div className="bg-white rounded-[12px] p-4 mb-6 shadow-[0_10px_20px_rgba(0,0,0,0.05)]">
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
             {/* Search Input */}
             <div className="flex-1 relative">
               <input
@@ -213,99 +261,178 @@ export default function MyInsights() {
                 placeholder="Cari bookmarked insights..."
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
               {searchTerm && (
                 <button
                   onClick={handleClearSearch}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               )}
             </div>
 
-            {/* Filter Topics dengan Checkbox */}
-            <div className="relative">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full sm:w-auto min-w-[180px] justify-between bg-white border-gray-300 rounded-lg shadow-sm px-4 py-2"
-                  >
-                    <div className="flex items-center">
-                      <Filter className="h-4 w-4 mr-2 text-gray-400" />
-                      <span className="text-sm">
-                        Topics {selectedTopics.length > 0 && `(${selectedTopics.length})`}
-                      </span>
+            {/* Filter Controls Row */}
+            <div className="flex flex-wrap gap-3 items-center">
+              {/* All Witel Filter */}
+              <div className="relative">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="h-9 px-3 text-sm border-gray-300 bg-white hover:bg-gray-50 min-w-[120px] justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Filter className="h-3 w-3 text-gray-400" />
+                        <span>All Witel</span>
+                      </div>
+                      <ChevronDown className="h-3 w-3 text-gray-400" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-0" align="start">
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-medium">Pilih Topics</h4>
+                        <button
+                          onClick={() => setSelectedTopics([])}
+                          className="text-xs text-blue-600 hover:text-blue-800"
+                        >
+                          Clear All
+                        </button>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto space-y-2">
+                        {uniqueTopics.map((topic) => (
+                          <div key={topic} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={topic}
+                              checked={selectedTopics.includes(topic)}
+                              onCheckedChange={() => handleTopicToggle(topic)}
+                            />
+                            <label
+                              htmlFor={topic}
+                              className="text-sm text-gray-700 cursor-pointer flex-1"
+                            >
+                              {topic}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <ChevronDown className="h-4 w-4 text-gray-400" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 p-0" align="start">
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-sm font-medium">Pilih Topics</h4>
-                      <button
-                        onClick={() => setSelectedTopics([])}
-                        className="text-xs text-blue-600 hover:text-blue-800"
-                      >
-                        Clear All
-                      </button>
-                    </div>
-                    <div className="max-h-64 overflow-y-auto space-y-2">
-                      {uniqueTopics.map((topic) => (
-                        <div key={topic} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={topic}
-                            checked={selectedTopics.includes(topic)}
-                            onCheckedChange={() => handleTopicToggle(topic)}
-                          />
-                          <label
-                            htmlFor={topic}
-                            className="text-sm text-gray-700 cursor-pointer flex-1"
-                          >
-                            {topic}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
 
-            {/* Filter Sentimen */}
-            <div className="relative">
-              <Select value={selectedSentiment} onValueChange={handleSentimentChange}>
-                <SelectTrigger className="w-full sm:w-auto min-w-[140px] bg-white border-gray-300 rounded-lg shadow-sm px-4 py-2">
-                  <div className="flex items-center">
-                    <Filter className="h-4 w-4 mr-2 text-gray-400" />
-                    <SelectValue placeholder="Sentimen" className="text-sm" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Sentiments</SelectItem>
-                  <SelectItem value="positive">Positif</SelectItem>
-                  <SelectItem value="negative">Negatif</SelectItem>
-                  <SelectItem value="neutral">Netral</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              {/* All Sources Filter */}
+              <div className="relative">
+                <Select value={selectedSentiment} onValueChange={handleSentimentChange}>
+                  <SelectTrigger className="h-9 px-3 text-sm border-gray-300 bg-white hover:bg-gray-50 min-w-[130px]">
+                    <div className="flex items-center gap-2">
+                      <Filter className="h-3 w-3 text-gray-400" />
+                      <SelectValue placeholder="All Sources" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sources</SelectItem>
+                    <SelectItem value="positive">Positif</SelectItem>
+                    <SelectItem value="negative">Negatif</SelectItem>
+                    <SelectItem value="neutral">Netral</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Clear All Filters Button */}
-            {(selectedTopics.length > 0 || selectedSentiment !== "all" || searchTerm) && (
+              {/* Date Range Filter */}
+              <div className="relative">
+                <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="h-9 px-3 text-sm border-gray-300 bg-white hover:bg-gray-50 min-w-[160px] justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon className="h-3 w-3 text-gray-400" />
+                        <span>
+                          {dateRange?.from ? (
+                            dateRange.to ? (
+                              `${format(dateRange.from, "dd/MM/yy")} - ${format(dateRange.to, "dd/MM/yy")}`
+                            ) : (
+                              format(dateRange.from, "dd/MM/yy")
+                            )
+                          ) : (
+                            "Select date range"
+                          )}
+                        </span>
+                      </div>
+                      <ChevronDown className="h-3 w-3 text-gray-400" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <div className="p-3 border-b">
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPresetRange('week')}
+                        >
+                          7 Hari
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPresetRange('month')}
+                        >
+                          30 Hari
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPresetRange('quarter')}
+                        >
+                          90 Hari
+                        </Button>
+                      </div>
+                    </div>
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={dateRange?.from}
+                      selected={dateRange}
+                      onSelect={handleDateRangeChange}
+                      numberOfMonths={2}
+                    />
+                    {dateRange?.from && (
+                      <div className="p-3 border-t">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={clearDateRange}
+                          className="w-full"
+                        >
+                          Clear Date Range
+                        </Button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          </div>
+
+          {/* Clear All Filters Button */}
+          {(selectedTopics.length > 0 || selectedSentiment !== "all" || searchTerm || dateRange?.from) && (
+            <div className="mt-3 flex justify-end">
               <Button
                 onClick={handleClearFilters}
-                variant="outline"
-                className="w-full sm:w-auto px-4 py-2 text-gray-600 border-gray-300 hover:bg-gray-50"
+                variant="ghost"
+                size="sm"
+                className="text-gray-500 hover:text-gray-700 text-xs"
               >
-                Reset All
+                Clear all filters
               </Button>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Search Results Info */}
           {searchTerm && (
@@ -323,16 +450,19 @@ export default function MyInsights() {
           )}
 
           {/* Filter Status Info */}
-          {!searchTerm && (selectedTopics.length > 0 || selectedSentiment !== "all") && (
+          {!searchTerm && (selectedTopics.length > 0 || selectedSentiment !== "all" || dateRange?.from) && (
             <div className="mt-3 text-sm text-blue-600">
               🔽 Filter aktif:
               {selectedTopics.length > 0 && ` ${selectedTopics.length} topics dipilih`}
               {selectedSentiment !== "all" && ` • Sentimen: ${selectedSentiment}`}
+              {dateRange?.from && ` • Periode: ${dateRange.to
+                ? `${format(dateRange.from, "dd/MM/yy")} - ${format(dateRange.to, "dd/MM/yy")}`
+                : format(dateRange.from, "dd/MM/yyyy")}`}
             </div>
           )}
 
           {/* Show all bookmarks hint when not searching or filtering */}
-          {!searchTerm && selectedTopics.length === 0 && selectedSentiment === "all" && (
+          {!searchTerm && selectedTopics.length === 0 && selectedSentiment === "all" && !dateRange?.from && (
             <div className="mt-3 text-sm text-gray-500">
               💡 Menampilkan semua {bookmarkedInsights.length} bookmarked insights. Gunakan pencarian atau filter untuk results spesifik.
             </div>
@@ -350,7 +480,7 @@ export default function MyInsights() {
                 </div>
               )}
             </>
-          ) : selectedTopics.length > 0 || selectedSentiment !== "all" ? (
+          ) : selectedTopics.length > 0 || selectedSentiment !== "all" || dateRange?.from ? (
             <>
               Menampilkan {totalInsights} bookmarked insights dari filter yang aktif
               {selectedTopics.length > 0 && (
@@ -362,6 +492,13 @@ export default function MyInsights() {
               {selectedSentiment !== "all" && (
                 <div className="mt-1 text-blue-600">
                   😊 Sentiment filter: {selectedSentiment}
+                </div>
+              )}
+              {dateRange?.from && (
+                <div className="mt-1 text-blue-600">
+                  📅 Periode: {dateRange.to
+                    ? `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}`
+                    : format(dateRange.from, "dd/MM/yyyy")}
                 </div>
               )}
               {totalInsights === 0 && (
@@ -382,6 +519,7 @@ export default function MyInsights() {
             type="neutral"
             insights={pinnedInsights.neutral}
             onRemoveInsight={handleRemoveInsight}
+            dateRange={dateRange}
             // No onPinInsight prop - we don't want bookmark button in My Insights
           />
 
@@ -391,6 +529,7 @@ export default function MyInsights() {
             type="negative"
             insights={pinnedInsights.negative}
             onRemoveInsight={handleRemoveInsight}
+            dateRange={dateRange}
             // No onPinInsight prop - we don't want bookmark button in My Insights
           />
 
@@ -400,6 +539,7 @@ export default function MyInsights() {
             type="positive"
             insights={pinnedInsights.positive}
             onRemoveInsight={handleRemoveInsight}
+            dateRange={dateRange}
             // No onPinInsight prop - we don't want bookmark button in My Insights
           />
         </div>

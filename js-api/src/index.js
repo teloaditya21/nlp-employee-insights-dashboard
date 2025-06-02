@@ -359,7 +359,7 @@ app.get('/api/insights/dashboard', async (c) => {
       LIMIT 5
     `).all();
 
-    // Get all insights for charts (top 20)
+    // Get all insights for charts
     const { results: allInsights } = await db.prepare(`
       SELECT
         id, wordInsight as word_insight, total_count, positif_count,
@@ -367,7 +367,6 @@ app.get('/api/insights/dashboard', async (c) => {
         netral_percentage, created_at
       FROM insight_summary
       ORDER BY total_count DESC
-      LIMIT 20
     `).all();
 
     const dashboardData = {
@@ -501,7 +500,28 @@ app.get('/api/insights/details/:word', async (c) => {
   try {
     const word = c.req.param('word');
     const limit = parseInt(c.req.query('limit') || '50');
+    const dateFrom = c.req.query('dateFrom') || '';
+    const dateTo = c.req.query('dateTo') || '';
     const db = c.env.DB;
+
+    // Build WHERE clause for date filtering
+    let whereConditions = ['wordInsight = ?1'];
+    let bindParams = [word];
+    let paramIndex = 2;
+
+    if (dateFrom) {
+      whereConditions.push(`date >= ?${paramIndex}`);
+      bindParams.push(dateFrom);
+      paramIndex++;
+    }
+
+    if (dateTo) {
+      whereConditions.push(`date <= ?${paramIndex}`);
+      bindParams.push(dateTo);
+      paramIndex++;
+    }
+
+    const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
 
     const { results } = await db.prepare(`
       SELECT
@@ -516,10 +536,10 @@ app.get('/api/insights/details/:word', async (c) => {
         sentimen,
         date
       FROM employee_insights
-      WHERE wordInsight = ?1
+      ${whereClause}
       ORDER BY date DESC
-      LIMIT ?2
-    `).bind(word, limit).all();
+      LIMIT ?${paramIndex}
+    `).bind(...bindParams, limit).all();
 
     // Transform data untuk frontend
     const transformedResults = results.map(item => ({
@@ -579,6 +599,108 @@ app.get('/api/debug/table-info', async (c) => {
     return c.json({
       success: false,
       error: 'Failed to get table info',
+      message: error.message
+    }, 500);
+  }
+});
+
+// Get filtered insights summary based on employee_insights data
+app.get('/api/insights/filtered', async (c) => {
+  try {
+    const db = c.env.DB;
+
+    // Filter parameters
+    const search = c.req.query('search') || '';
+    const sentiment = c.req.query('sentiment') || '';
+    const dateFrom = c.req.query('dateFrom') || '';
+    const dateTo = c.req.query('dateTo') || '';
+
+    // Build WHERE clause based on filters
+    let whereConditions = [];
+    let bindParams = [];
+    let paramIndex = 1;
+
+    if (search) {
+      whereConditions.push(`(sentenceInsight LIKE ?${paramIndex} OR originalInsight LIKE ?${paramIndex} OR wordInsight LIKE ?${paramIndex})`);
+      bindParams.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    if (sentiment && sentiment !== 'all') {
+      // Map frontend sentiment values to database values
+      const sentimentMap = {
+        'positive': 'positif',
+        'negative': 'negatif',
+        'neutral': 'netral'
+      };
+      const dbSentiment = sentimentMap[sentiment] || sentiment;
+      whereConditions.push(`sentimen = ?${paramIndex}`);
+      bindParams.push(dbSentiment);
+      paramIndex++;
+    }
+
+    if (dateFrom) {
+      whereConditions.push(`date >= ?${paramIndex}`);
+      bindParams.push(dateFrom);
+      paramIndex++;
+    }
+
+    if (dateTo) {
+      whereConditions.push(`date <= ?${paramIndex}`);
+      bindParams.push(dateTo);
+      paramIndex++;
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    // Query to get word insights with counts from filtered employee_insights data
+    const query = `
+      SELECT
+        ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) as id,
+        wordInsight as word_insight,
+        COUNT(*) as total_count,
+        SUM(CASE WHEN sentimen = 'positif' THEN 1 ELSE 0 END) as positif_count,
+        SUM(CASE WHEN sentimen = 'negatif' THEN 1 ELSE 0 END) as negatif_count,
+        SUM(CASE WHEN sentimen = 'netral' THEN 1 ELSE 0 END) as netral_count,
+        ROUND(
+          (SUM(CASE WHEN sentimen = 'positif' THEN 1 ELSE 0 END) * 100.0) / COUNT(*),
+          2
+        ) as positif_percentage,
+        ROUND(
+          (SUM(CASE WHEN sentimen = 'negatif' THEN 1 ELSE 0 END) * 100.0) / COUNT(*),
+          2
+        ) as negatif_percentage,
+        ROUND(
+          (SUM(CASE WHEN sentimen = 'netral' THEN 1 ELSE 0 END) * 100.0) / COUNT(*),
+          2
+        ) as netral_percentage,
+        MAX(date) as created_at
+      FROM employee_insights
+      ${whereClause}
+      GROUP BY wordInsight
+      HAVING COUNT(*) > 0
+      ORDER BY total_count DESC
+    `;
+
+    const { results } = await db.prepare(query).bind(...bindParams).all();
+
+    return c.json({
+      success: true,
+      data: results,
+      total: results.length,
+      filters: {
+        search,
+        sentiment,
+        dateFrom,
+        dateTo
+      },
+      message: `Successfully retrieved ${results.length} filtered insights`
+    });
+  } catch (error) {
+    console.error('Error fetching filtered insights:', error);
+    return c.json({
+      success: false,
+      error: 'Failed to fetch filtered insights',
       message: error.message
     }, 500);
   }
@@ -2271,6 +2393,7 @@ app.get('/health', (c) => {
     message: 'API is running smoothly'
   });
 });
+
 
 // 404 handler
 app.notFound((c) => {
