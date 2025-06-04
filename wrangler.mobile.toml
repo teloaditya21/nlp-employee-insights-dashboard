@@ -1,0 +1,8 @@
+name = "nlp-insights-mobile"
+compatibility_date = "2024-01-15"
+
+[env.production]
+name = "nlp-insights-mobile"
+
+# Pages configuration for mobile app
+pages_build_output_dir = "dist-mobile"

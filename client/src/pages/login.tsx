@@ -211,7 +211,7 @@ export default function Login() {
           <img
             src={nlpLogo}
             alt="NLP Logo"
-            className="h-32 ml-auto mb-1"
+            className="h-32 w-40 ml-auto mb-1"
           />
           <div className="text-base text-black font-medium tracking-wide">
             MVP VERSION
@@ -237,10 +237,10 @@ export default function Login() {
                   <FormItem>
                     <FormControl>
                       <div className="relative">
-                        <User className="absolute left-3 top-3 h-5 w-5 text-blue-500" />
+                        <User className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                         <Input
                           placeholder="Username"
-                          className="pl-10 py-6 rounded-lg border-gray-200 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:border-blue-500 transition-colors"
+                          className="pl-12 py-4 rounded-2xl border-gray-200 bg-gray-50 focus-visible:ring-0 focus-visible:border-gray-300 focus-visible:bg-white transition-all text-base"
                           {...field}
                         />
                       </div>
@@ -257,16 +257,16 @@ export default function Login() {
                   <FormItem>
                     <FormControl>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-5 w-5 text-blue-500" />
+                        <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                         <Input
                           type={showPassword ? "text" : "password"}
                           placeholder="Password"
-                          className="pl-10 py-6 rounded-lg border-gray-200 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:border-blue-500 transition-colors"
+                          className="pl-12 pr-12 py-4 rounded-2xl border-gray-200 bg-gray-50 focus-visible:ring-0 focus-visible:border-gray-300 focus-visible:bg-white transition-all text-base"
                           {...field}
                         />
                         <button
                           type="button"
-                          className="absolute right-3 top-3 text-blue-500 hover:text-blue-600 transition-colors"
+                          className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                           onClick={togglePasswordVisibility}
                         >
                           {showPassword ? (
@@ -284,7 +284,7 @@ export default function Login() {
 
               <Button
                 type="submit"
-                className="w-full py-6 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium text-white shadow-lg hover:shadow-xl transition-all duration-300"
+                className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-2xl font-semibold text-white text-lg shadow-lg hover:shadow-xl transition-all duration-300"
                 disabled={isLoading}
               >
                 {isLoading ? "Logging in..." : "Login"}
@@ -292,15 +292,11 @@ export default function Login() {
             </form>
           </Form>
 
-          <p className="text-sm text-center text-gray-500 mt-6">
+          <p className="text-sm text-center text-gray-500 mt-8">
             By clicking continue, you agree to our{" "}
-            <a href="#" className="text-indigo-600 hover:underline">
-              Terms of Service
-            </a>{" "}
+            <span className="text-blue-600 font-medium">Terms of Service</span>{" "}
             and{" "}
-            <a href="#" className="text-indigo-600 hover:underline">
-              Privacy Policy
-            </a>.
+            <span className="text-blue-600 font-medium">Privacy Policy</span>.
           </p>
         </div>
       </div>

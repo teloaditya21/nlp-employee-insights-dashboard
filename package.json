@@ -5,13 +5,16 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite",
+    "dev:mobile": "vite --config vite.mobile.config.js",
     "build": "vite build",
+    "build:mobile": "vite build --config vite.mobile.config.js",
     "start": "node server.js",
     "preview": "vite preview",
     "check": "tsc",
     "deploy": "npm run build && wrangler pages deploy dist --project-name=employee-insights-frontend",
+    "deploy:mobile": "npm run build:mobile && wrangler pages deploy dist-mobile --project-name=nlp-insights-mobile --config=wrangler.mobile.toml",
     "deploy:api": "cd js-api && npm run deploy",
-    "deploy:all": "npm run deploy:api && npm run deploy"
+    "deploy:all": "npm run deploy:api && npm run deploy && npm run deploy:mobile"
   },
   "dependencies": {
     "@amcharts/amcharts5": "^5.12.2",

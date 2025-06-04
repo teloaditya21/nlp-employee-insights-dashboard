@@ -328,7 +328,7 @@ export default function Sidebar() {
         <img
           src={nlpLogo}
           alt="NLP Logo"
-          className="h-20"
+          className="h-20 w-28"
         />
       </div>
 
