@@ -593,10 +593,10 @@ export default function SurveyDashboard() {
           {/* Search Results Info */}
           {searchTerm && (
             <div className="mt-3 text-sm text-gray-600">
-              {searchResults?.data ? (
-                searchResults.data.length > 0 ? (
+              {currentInsights?.data ? (
+                currentInsights.data.length > 0 ? (
                   <span className="text-green-600">
-                    ✓ Ditemukan {searchResults.data.length} topics untuk "{searchTerm}"
+                    ✓ Ditemukan {currentInsights.data.length} topics untuk "{searchTerm}"
                   </span>
                 ) : (
                   <span className="text-orange-600">

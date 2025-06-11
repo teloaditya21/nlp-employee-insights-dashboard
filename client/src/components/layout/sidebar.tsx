@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { format } from "date-fns";
+import { CURRENT_CONFIG } from "@/utils/constants";
 
 interface SidebarItemProps {
   href: string;
@@ -88,14 +89,14 @@ interface ApiResponse {
   message: string;
 }
 
-// Hook untuk mengambil data top insights dari API
+// Hook untuk mengambil data top insights dari D1 database
 function useTopWordInsights() {
   return useQuery<TopWordInsight[]>({
     queryKey: ['/api/insights/top-10'],
     queryFn: async () => {
-      const response = await fetch('https://employee-insights-api.adityalasika.workers.dev/api/insights/top-10');
+      const response = await fetch(`${CURRENT_CONFIG.API_BASE_URL}/api/insights/top-10`);
       if (!response.ok) {
-        throw new Error('Failed to fetch top insights');
+        throw new Error('Failed to fetch top insights from D1 database');
       }
       const data: ApiResponse = await response.json();
       return data.data;
@@ -301,7 +302,7 @@ export default function Sidebar() {
     queryKey: [`/api/insights/details/${selectedInsight}`, showPopup],
     queryFn: async () => {
       if (!showPopup || !selectedInsight) return null;
-      const response = await fetch(`https://employee-insights-api.adityalasika.workers.dev/api/insights/details/${encodeURIComponent(selectedInsight)}?limit=100`);
+      const response = await fetch(`${CURRENT_CONFIG.API_BASE_URL}/api/insights/details/${encodeURIComponent(selectedInsight)}?limit=100`);
       if (!response.ok) throw new Error('Failed to fetch insight details');
       return response.json();
     },

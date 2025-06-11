@@ -46,6 +46,7 @@ app.get('/', (c) => {
       'POST /api/auth/login': 'User login with session management',
       'POST /api/auth/logout': 'User logout and session cleanup',
       'GET /api/auth/validate': 'Validate current session',
+      'POST /api/data/import': 'Import new data from JSON (Admin only)',
       'GET /health': 'Health check'
     }
   });
@@ -2379,6 +2380,410 @@ app.delete('/api/export/delete/:date/:filename?', async (c) => {
     return c.json({
       success: false,
       error: 'Failed to delete export',
+      message: error.message
+    }, 500);
+  }
+});
+
+// Incremental data import endpoint (Admin only) - Adds new data without replacing existing
+app.post('/api/data/import-incremental', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+
+    // Check if user is admin
+    if (user.role !== 'admin') {
+      return c.json({
+        success: false,
+        error: 'Unauthorized. Admin access required.',
+      }, 403);
+    }
+
+    const body = await c.req.json();
+    const data = body.data;
+
+    if (!Array.isArray(data)) {
+      return c.json({
+        success: false,
+        error: 'Invalid data format. Expected an array of insights.',
+      }, 400);
+    }
+
+    const db = c.env.DB;
+
+    console.log(`Starting incremental data import with ${data.length} new records`);
+
+    // Get current record count
+    const currentCount = await db.prepare('SELECT COUNT(*) as count FROM employee_insights').first();
+    console.log(`Current database has ${currentCount.count} records`);
+
+    // Prepare insert statement for employee_insights
+    const insertStmt = db.prepare(`
+      INSERT INTO employee_insights (
+        sourceData, employeeName, date, witel, kota,
+        originalInsight, sentenceInsight, wordInsight, sentimen
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    // Insert new data in batches for better performance
+    const batchSize = 100;
+    let insertedCount = 0;
+    let errorCount = 0;
+
+    for (let i = 0; i < data.length; i += batchSize) {
+      const batch = data.slice(i, i + batchSize);
+
+      // Prepare batch statements with data validation
+      const batchStatements = [];
+
+      for (const record of batch) {
+        try {
+          // Validate and clean data
+          const cleanRecord = {
+            sourceData: record.sourceData || 'Unknown',
+            employeeName: record.employeeName || 'Unknown',
+            date: record.date || new Date().toISOString().split('T')[0],
+            witel: record.witel || 'Unknown',
+            kota: record.kota || 'Unknown',
+            originalInsight: record.originalInsight || '',
+            sentenceInsight: record.sentenceInsight || '',
+            wordInsight: record.wordInsight || 'Unknown',
+            sentimen: record.sentimen || 'netral'
+          };
+
+          // Validate sentiment values
+          if (!['positif', 'negatif', 'netral'].includes(cleanRecord.sentimen)) {
+            cleanRecord.sentimen = 'netral';
+          }
+
+          batchStatements.push(
+            insertStmt.bind(
+              cleanRecord.sourceData,
+              cleanRecord.employeeName,
+              cleanRecord.date,
+              cleanRecord.witel,
+              cleanRecord.kota,
+              cleanRecord.originalInsight,
+              cleanRecord.sentenceInsight,
+              cleanRecord.wordInsight,
+              cleanRecord.sentimen
+            )
+          );
+        } catch (error) {
+          errorCount++;
+          console.error(`Error preparing record ${i + batchStatements.length + 1}:`, error);
+        }
+      }
+
+      // Execute batch
+      if (batchStatements.length > 0) {
+        await db.batch(batchStatements);
+        insertedCount += batchStatements.length;
+      }
+
+      console.log(`Processed batch ${Math.floor(i / batchSize) + 1}: inserted ${insertedCount}, errors ${errorCount}`);
+    }
+
+    console.log(`Incremental import completed. Added ${insertedCount} new records with ${errorCount} errors.`);
+
+    // Regenerate insight_summary table with combined data
+    console.log('Regenerating insight_summary table with combined data...');
+    await db.prepare('DELETE FROM insight_summary').run();
+    await db.prepare(`
+      INSERT INTO insight_summary (
+        wordInsight,
+        total_count,
+        positif_count,
+        negatif_count,
+        netral_count,
+        positif_percentage,
+        negatif_percentage,
+        netral_percentage
+      )
+      SELECT
+        wordInsight,
+        COUNT(*) as total_count,
+        SUM(CASE WHEN sentimen = 'positif' THEN 1 ELSE 0 END) as positif_count,
+        SUM(CASE WHEN sentimen = 'negatif' THEN 1 ELSE 0 END) as negatif_count,
+        SUM(CASE WHEN sentimen = 'netral' THEN 1 ELSE 0 END) as netral_count,
+        ROUND(
+          (SUM(CASE WHEN sentimen = 'positif' THEN 1 ELSE 0 END) * 100.0) / COUNT(*),
+          2
+        ) as positif_percentage,
+        ROUND(
+          (SUM(CASE WHEN sentimen = 'negatif' THEN 1 ELSE 0 END) * 100.0) / COUNT(*),
+          2
+        ) as negatif_percentage,
+        ROUND(
+          (SUM(CASE WHEN sentimen = 'netral' THEN 1 ELSE 0 END) * 100.0) / COUNT(*),
+          2
+        ) as netral_percentage
+      FROM employee_insights
+      WHERE wordInsight IS NOT NULL AND wordInsight != ''
+      GROUP BY wordInsight
+      HAVING COUNT(*) > 0
+    `).run();
+
+    // Regenerate kota_summary table with combined data
+    console.log('Regenerating kota_summary table with combined data...');
+    await db.prepare('DELETE FROM kota_summary').run();
+    await db.prepare(`
+      INSERT INTO kota_summary (
+        kota,
+        total_count,
+        positif_count,
+        negatif_count,
+        netral_count,
+        positif_percentage,
+        negatif_percentage,
+        netral_percentage
+      )
+      SELECT
+        kota,
+        COUNT(*) as total_count,
+        SUM(CASE WHEN sentimen = 'positif' THEN 1 ELSE 0 END) as positif_count,
+        SUM(CASE WHEN sentimen = 'negatif' THEN 1 ELSE 0 END) as negatif_count,
+        SUM(CASE WHEN sentimen = 'netral' THEN 1 ELSE 0 END) as netral_count,
+        ROUND(
+          (SUM(CASE WHEN sentimen = 'positif' THEN 1 ELSE 0 END) * 100.0) / COUNT(*),
+          2
+        ) as positif_percentage,
+        ROUND(
+          (SUM(CASE WHEN sentimen = 'negatif' THEN 1 ELSE 0 END) * 100.0) / COUNT(*),
+          2
+        ) as negatif_percentage,
+        ROUND(
+          (SUM(CASE WHEN sentimen = 'netral' THEN 1 ELSE 0 END) * 100.0) / COUNT(*),
+          2
+        ) as netral_percentage
+      FROM employee_insights
+      WHERE kota IS NOT NULL AND kota != ''
+      GROUP BY kota
+      HAVING COUNT(*) > 0
+    `).run();
+
+    console.log('Summary tables regenerated successfully with combined data.');
+
+    // Get final counts for verification
+    const finalCounts = await db.prepare(`
+      SELECT
+        (SELECT COUNT(*) FROM employee_insights) as employee_insights_count,
+        (SELECT COUNT(*) FROM insight_summary) as insight_summary_count,
+        (SELECT COUNT(*) FROM kota_summary) as kota_summary_count
+    `).first();
+
+    return c.json({
+      success: true,
+      data: {
+        previous_count: currentCount.count,
+        new_records_added: insertedCount,
+        errors: errorCount,
+        total_new_records: data.length,
+        final_total: finalCounts.employee_insights_count,
+        final_counts: finalCounts
+      },
+      message: `Successfully added ${insertedCount} new records (${errorCount} errors). Total records: ${finalCounts.employee_insights_count}`
+    });
+
+  } catch (error) {
+    console.error('Error in incremental import:', error);
+    return c.json({
+      success: false,
+      error: 'Failed to import data incrementally',
+      message: error.message
+    }, 500);
+  }
+});
+
+// Data import endpoint (Admin only)
+app.post('/api/data/import', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+
+    // Check if user is admin
+    if (user.role !== 'admin') {
+      return c.json({
+        success: false,
+        error: 'Unauthorized',
+        message: 'Only admin users can import data'
+      }, 403);
+    }
+
+    const { data } = await c.req.json();
+
+    if (!data || !Array.isArray(data)) {
+      return c.json({
+        success: false,
+        error: 'Invalid data format',
+        message: 'Data must be an array of insight objects'
+      }, 400);
+    }
+
+    const db = c.env.DB;
+
+    console.log(`Starting data import with ${data.length} records`);
+
+    // Clear existing data
+    console.log('Clearing existing data...');
+    await db.prepare('DELETE FROM employee_insights').run();
+    await db.prepare('DELETE FROM insight_summary').run();
+    await db.prepare('DELETE FROM kota_summary').run();
+    await db.prepare("DELETE FROM sqlite_sequence WHERE name IN ('employee_insights', 'insight_summary', 'kota_summary')").run();
+
+    // Prepare insert statement
+    const insertStmt = db.prepare(`
+      INSERT INTO employee_insights (
+        sourceData, employeeName, date, witel, kota,
+        originalInsight, sentenceInsight, wordInsight, sentimen
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    // Import data in batches using D1 batch operations with validation
+    const batchSize = 100;
+    let imported = 0;
+    let errorCount = 0;
+
+    for (let i = 0; i < data.length; i += batchSize) {
+      const batch = data.slice(i, i + batchSize);
+
+      // Prepare batch statements with data validation
+      const batchStatements = [];
+
+      for (const record of batch) {
+        try {
+          // Validate and clean data
+          const cleanRecord = {
+            sourceData: record.sourceData || 'Unknown',
+            employeeName: record.employeeName || 'Unknown',
+            date: record.date || new Date().toISOString().split('T')[0],
+            witel: record.witel || 'Unknown',
+            kota: record.kota || 'Unknown',
+            originalInsight: record.originalInsight || '',
+            sentenceInsight: record.sentenceInsight || '',
+            wordInsight: record.wordInsight || 'Unknown',
+            sentimen: record.sentimen || 'netral'
+          };
+
+          // Validate sentiment values
+          if (!['positif', 'negatif', 'netral'].includes(cleanRecord.sentimen)) {
+            cleanRecord.sentimen = 'netral';
+          }
+
+          batchStatements.push(
+            insertStmt.bind(
+              cleanRecord.sourceData,
+              cleanRecord.employeeName,
+              cleanRecord.date,
+              cleanRecord.witel,
+              cleanRecord.kota,
+              cleanRecord.originalInsight,
+              cleanRecord.sentenceInsight,
+              cleanRecord.wordInsight,
+              cleanRecord.sentimen
+            )
+          );
+        } catch (error) {
+          errorCount++;
+          console.error(`Error preparing record ${i + batchStatements.length + 1}:`, error);
+        }
+      }
+
+      // Execute batch
+      if (batchStatements.length > 0) {
+        await db.batch(batchStatements);
+        imported += batchStatements.length;
+      }
+
+      console.log(`Processed batch ${Math.floor(i / batchSize) + 1}: imported ${imported}, errors ${errorCount}`);
+    }
+
+    console.log('Data import completed, regenerating summary tables...');
+
+    // Regenerate insight_summary
+    await db.prepare(`
+      INSERT INTO insight_summary (
+        wordInsight, total_count, positif_count, negatif_count, netral_count,
+        positif_percentage, negatif_percentage, netral_percentage
+      )
+      SELECT
+        wordInsight,
+        COUNT(*) as total_count,
+        SUM(CASE WHEN sentimen = 'positif' THEN 1 ELSE 0 END) as positif_count,
+        SUM(CASE WHEN sentimen = 'negatif' THEN 1 ELSE 0 END) as negatif_count,
+        SUM(CASE WHEN sentimen = 'netral' THEN 1 ELSE 0 END) as netral_count,
+        ROUND(
+          (SUM(CASE WHEN sentimen = 'positif' THEN 1 ELSE 0 END) * 100.0) / COUNT(*),
+          2
+        ) as positif_percentage,
+        ROUND(
+          (SUM(CASE WHEN sentimen = 'negatif' THEN 1 ELSE 0 END) * 100.0) / COUNT(*),
+          2
+        ) as negatif_percentage,
+        ROUND(
+          (SUM(CASE WHEN sentimen = 'netral' THEN 1 ELSE 0 END) * 100.0) / COUNT(*),
+          2
+        ) as netral_percentage
+      FROM employee_insights
+      WHERE wordInsight IS NOT NULL AND wordInsight != ''
+      GROUP BY wordInsight
+      HAVING COUNT(*) > 0
+    `).run();
+
+    // Regenerate kota_summary
+    await db.prepare(`
+      INSERT INTO kota_summary (
+        kota, total_count, positif_count, negatif_count, netral_count,
+        positif_percentage, negatif_percentage, netral_percentage
+      )
+      SELECT
+        kota,
+        COUNT(*) as total_count,
+        SUM(CASE WHEN sentimen = 'positif' THEN 1 ELSE 0 END) as positif_count,
+        SUM(CASE WHEN sentimen = 'negatif' THEN 1 ELSE 0 END) as negatif_count,
+        SUM(CASE WHEN sentimen = 'netral' THEN 1 ELSE 0 END) as netral_count,
+        ROUND(
+          (SUM(CASE WHEN sentimen = 'positif' THEN 1 ELSE 0 END) * 100.0) / COUNT(*),
+          2
+        ) as positif_percentage,
+        ROUND(
+          (SUM(CASE WHEN sentimen = 'negatif' THEN 1 ELSE 0 END) * 100.0) / COUNT(*),
+          2
+        ) as negatif_percentage,
+        ROUND(
+          (SUM(CASE WHEN sentimen = 'netral' THEN 1 ELSE 0 END) * 100.0) / COUNT(*),
+          2
+        ) as netral_percentage
+      FROM employee_insights
+      WHERE kota IS NOT NULL AND kota != ''
+      GROUP BY kota
+      HAVING COUNT(*) > 0
+    `).run();
+
+    console.log('Summary tables regenerated successfully!');
+
+    // Get final counts for verification
+    const finalCounts = await db.prepare(`
+      SELECT
+        (SELECT COUNT(*) FROM employee_insights) as employee_insights_count,
+        (SELECT COUNT(*) FROM insight_summary) as insight_summary_count,
+        (SELECT COUNT(*) FROM kota_summary) as kota_summary_count
+    `).first();
+
+    return c.json({
+      success: true,
+      data: {
+        imported: imported,
+        errors: errorCount,
+        total: data.length,
+        final_counts: finalCounts
+      },
+      message: `Successfully imported ${imported} records (${errorCount} errors) and regenerated summary tables`
+    });
+
+  } catch (error) {
+    console.error('Error importing data:', error);
+    return c.json({
+      success: false,
+      error: 'Data import failed',
       message: error.message
     }, 500);
   }

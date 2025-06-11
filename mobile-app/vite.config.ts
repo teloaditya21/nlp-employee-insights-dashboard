@@ -17,7 +17,7 @@ export default defineConfig({
   },
   base: '/',
   build: {
-    outDir: '../dist-mobile',
+    outDir: 'dist',
     emptyOutDir: true,
   }
 })

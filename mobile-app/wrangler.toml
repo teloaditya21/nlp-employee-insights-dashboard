@@ -1,0 +1,13 @@
+name = "employee-insights-mobile"
+compatibility_date = "2023-12-01"
+pages_build_output_dir = "dist"
+
+# Environment variables for production
+[vars]
+VITE_API_BASE_URL = "https://employee-insights-api.adityalasika.workers.dev"
+ENVIRONMENT = "production"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "employee-insights"
+database_id = "1bb5e7b7-3a9c-4db0-b47d-932a475b13a8"

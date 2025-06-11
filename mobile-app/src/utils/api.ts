@@ -67,68 +67,47 @@ export interface TopInsight {
 
 // API Functions
 export const apiService = {
-  // Get word cloud data
+  // Get word cloud data from D1 database
   async getWordCloudData(): Promise<WordCloudData[]> {
     try {
-      const response = await api.get('/api/survey-data')
-      console.log('Survey data API response:', response.data)
+      const response = await api.get('/api/insights/top-10')
+      console.log('D1 insights API response:', response.data)
 
-      // Process survey data to create word cloud
-      const surveyData = response.data.data || []
-      const wordFrequency: { [key: string]: number } = {}
+      // Process D1 insights data to create word cloud
+      const insightsData = response.data.data || []
 
-      // Extract words from feedback and count frequency
-      surveyData.forEach((item: any) => {
-        if (item.feedback) {
-          const words = item.feedback
-            .toLowerCase()
-            .replace(/[^\w\s]/g, '')
-            .split(/\s+/)
-            .filter((word: string) => word.length > 3)
+      // Convert D1 insights to word cloud format
+      const wordCloudData = insightsData.map((item: any) => ({
+        text: item.word_insight || item.wordInsight,
+        value: item.total_count || item.totalCount || 1,
+        category: item.dominant_sentiment || 'neutral'
+      }))
 
-          words.forEach((word: string) => {
-            wordFrequency[word] = (wordFrequency[word] || 0) + 1
-          })
-        }
-      })
-
-      // Convert to word cloud format and sort by frequency
-      return Object.entries(wordFrequency)
-        .map(([text, value]) => ({ text, value }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 50)
+      return wordCloudData.slice(0, 50) // Top 50 insights
     } catch (error) {
-      console.error('Error fetching word cloud data:', error)
+      console.error('Error fetching word cloud data from D1:', error)
       return []
     }
   },
 
-  // Get top insights
+  // Get top insights from D1 database
   async getTopInsights(limit: number = 10): Promise<TopInsight[]> {
     try {
-      const response = await api.get('/api/survey-data')
-      console.log('Survey data for insights:', response.data)
+      const response = await api.get('/api/insights/top-10')
+      console.log('D1 insights data for mobile:', response.data)
 
-      const surveyData = response.data.data || []
+      const insightsData = response.data.data || []
 
-      // Process survey data to create insights
-      const insights = surveyData
-        .filter((item: any) => item.feedback && item.feedback.length > 10)
+      // Transform D1 data to mobile format
+      const insights = insightsData
         .map((item: any, index: number) => {
-          // Calculate importance score based on multiple factors
-          const feedbackLength = item.feedback.length
-          const sentimentWeight = item.sentiment === 'positive' ? 1.2 : item.sentiment === 'negative' ? 1.5 : 1.0
-          const lengthScore = Math.min(feedbackLength / 100, 3) // Max 3 points for length
-          const randomFactor = Math.random() * 2 // Add some randomness
-          const importance_score = (lengthScore * sentimentWeight + randomFactor) * 2
-
           return {
             id: item.id || `insight-${index}`,
-            insight: item.feedback,
-            sentiment: item.sentiment || 'neutral',
-            importance_score: Math.min(importance_score, 10), // Cap at 10
-            witel: item.witel || item.kota || 'Unknown',
-            source: item.source || 'Survey',
+            insight: item.word_insight || item.wordInsight || 'No insight available',
+            sentiment: item.dominant_sentiment || 'neutral',
+            importance_score: Math.min(item.total_count || 1, 10), // Use total_count as importance, cap at 10
+            witel: item.witel || 'Unknown',
+            source: 'Employee Feedback',
             created_at: item.created_at || new Date().toISOString()
           }
         })
@@ -137,18 +116,29 @@ export const apiService = {
 
       return insights
     } catch (error) {
-      console.error('Error fetching top insights:', error)
+      console.error('Error fetching top insights from D1:', error)
       return []
     }
   },
 
-  // Get survey data for insights
+  // Get employee insights data from D1 database
   async getSurveyData(): Promise<InsightData[]> {
     try {
-      const response = await api.get('/api/survey-data')
-      return response.data.data || []
+      const response = await api.get('/api/employee-insights/paginated?limit=100')
+      const data = response.data.data || []
+
+      // Transform D1 employee insights to mobile format
+      return data.map((item: any) => ({
+        id: item.id.toString(),
+        employee_name: item.employeeName || item.employee_name || 'Unknown',
+        feedback: item.sentenceInsight || item.sentence_insight || item.originalInsight || 'No feedback',
+        sentiment: item.sentimen || item.sentiment || 'neutral',
+        witel: item.witel || 'Unknown',
+        source: item.sourceData || item.source || 'Employee Feedback',
+        created_at: item.date || item.created_at || new Date().toISOString()
+      }))
     } catch (error) {
-      console.error('Error fetching survey data:', error)
+      console.error('Error fetching employee insights from D1:', error)
       return []
     }
   },

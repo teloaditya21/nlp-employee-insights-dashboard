@@ -7,6 +7,7 @@ import AmChartsWordCloud from "@/components/dashboard/amcharts-word-cloud";
 import IndonesiaMap from "@/components/dashboard/indonesia-map";
 import { useQuery } from "@tanstack/react-query";
 import { usePageContext } from "@/hooks/usePageContext";
+import { CURRENT_CONFIG } from "@/utils/constants";
 import { TopInsightsSkeleton } from "@/components/skeletons";
 import {
   Table,
@@ -250,13 +251,13 @@ export default function TopInsights() {
     to: today
   };
 
-  // Fetch kota summary data for map
+  // Fetch kota summary data for map from D1 database
   const { data: kotaSummaryData } = useQuery({
     queryKey: ['/api/kota-summary'],
     queryFn: async () => {
-      const response = await fetch('https://employee-insights-api.adityalasika.workers.dev/api/kota-summary');
+      const response = await fetch(`${CURRENT_CONFIG.API_BASE_URL}/api/kota-summary`);
       if (!response.ok) {
-        throw new Error('Failed to fetch kota summary');
+        throw new Error('Failed to fetch kota summary from D1 database');
       }
       const data = await response.json();
       return data.data;
@@ -281,7 +282,7 @@ export default function TopInsights() {
       if (dateRange?.from) params.append('dateFrom', dateRange.from.toISOString().split('T')[0]);
       if (dateRange?.to) params.append('dateTo', dateRange.to.toISOString().split('T')[0]);
 
-      const response = await fetch(`https://employee-insights-api.adityalasika.workers.dev/api/employee-insights/paginated?${params.toString()}`);
+      const response = await fetch(`${CURRENT_CONFIG.API_BASE_URL}/api/employee-insights/paginated?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch insights');
@@ -390,22 +391,8 @@ export default function TopInsights() {
       sentiment: item.sentenceInsight ? `${item.sentenceInsight.substring(0, 50)}...` : item.sentimen,
       date: item.date ? new Date(item.date).toISOString().split('T')[0].replace(/-/g, '/') : 'Unknown'
     })),
-    totalCount: Number(insightsData.total) || 0,
-    // Word cloud data for amCharts - using the top word insights
-    wordCloudData: [
-      { tag: "program", weight: 80 },
-      { tag: "karyawan", weight: 65 },
-      { tag: "peserta", weight: 42 },
-      { tag: "materi", weight: 48 },
-      { tag: "proses", weight: 35 },
-      { tag: "evaluasi", weight: 30 },
-      { tag: "manajemen", weight: 25 },
-      { tag: "perusahaan", weight: 20 },
-      { tag: "pengembangan", weight: 15 },
-      { tag: "implementasi", weight: 12 },
-      { tag: "kebijakan", weight: 10 },
-      { tag: "administrasi", weight: 8 }
-    ]
+    totalCount: Number(insightsData.total) || 0
+    // Note: Word cloud data is now fetched directly by AmChartsWordCloud component from D1 database
   } : null;
 
   useEffect(() => {

@@ -152,13 +152,13 @@ export default function InsightDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="mobile-container min-h-screen bg-gray-50 flex flex-col">
-        {/* Fixed Header */}
-        <div className="bg-white border-b border-gray-200 px-4 py-3 fixed top-0 left-0 right-0 z-50">
+      <div className="mobile-container min-h-screen bg-gray-50">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-50">
           <div className="flex items-center space-x-3">
             <button
               onClick={handleBack}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors touch-target"
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
             >
               <ArrowLeft className="h-5 w-5 text-gray-600" />
             </button>
@@ -170,7 +170,7 @@ export default function InsightDetailPage() {
         </div>
 
         {/* Loading Content */}
-        <div className="flex-1 flex items-center justify-center pt-16">
+        <div className="p-4 flex items-center justify-center py-20">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-600 font-medium">Loading insight details...</p>
@@ -181,13 +181,13 @@ export default function InsightDetailPage() {
   }
 
   return (
-    <div className="mobile-container min-h-screen bg-gray-50 flex flex-col">
-      {/* Fixed Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 fixed top-0 left-0 right-0 z-50">
+    <div className="mobile-container min-h-screen bg-gray-50 overflow-y-auto bounce-scroll">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-50">
         <div className="flex items-center space-x-3">
           <button
             onClick={handleBack}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors touch-target"
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
           >
             <ArrowLeft className="h-5 w-5 text-gray-600" />
           </button>
@@ -198,9 +198,8 @@ export default function InsightDetailPage() {
         </div>
       </div>
 
-      {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto bounce-scroll pt-16">
-        <div className="p-4 space-y-4 pb-20">
+      {/* Content */}
+      <div className="p-4 space-y-4 pb-20">
         {/* Statistics */}
         <div className="bg-white rounded-lg p-4 shadow-sm">
           <h3 className="text-sm font-semibold text-gray-900 mb-3">Statistik</h3>
@@ -274,11 +273,10 @@ export default function InsightDetailPage() {
             <div className="w-8 h-1 bg-gray-400 rounded-full shadow-sm"></div>
           </div>
         </div>
-
-        {/* Bottom Bounce Area */}
-        <div className="h-4 bg-transparent"></div>
-        </div>
       </div>
+
+      {/* Bottom Bounce Area */}
+      <div className="h-4 bg-transparent"></div>
     </div>
   )
 }

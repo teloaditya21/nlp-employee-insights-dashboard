@@ -42,28 +42,29 @@ const WordCloud: React.FC<WordCloudProps> = ({
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [startPosition, setStartPosition] = useState({ x: 0, y: 0 });
   
-  // Fetch real data from the API if useRealData is true
+  // Fetch real data from the D1 database via API
   const { data: apiData, isLoading } = useQuery({
-    queryKey: ['/api/survey-dashboard/summary'],
+    queryKey: ['/api/insights/top-10'],
     queryFn: async () => {
       if (!useRealData) return null;
-      
-      const response = await fetch('/api/survey-dashboard/summary');
+
+      const response = await fetch('https://employee-insights-api.adityalasika.workers.dev/api/insights/top-10');
       if (!response.ok) {
-        throw new Error('Failed to fetch word cloud data');
+        throw new Error('Failed to fetch word cloud data from D1 database');
       }
-      
+
       const result = await response.json();
       return result.data as WordCloudDataItem[];
     },
-    enabled: useRealData
+    enabled: useRealData,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
-  
-  // Determine which data to use (API data or prop data)
-  const cloudData = useRealData && apiData 
+
+  // Determine which data to use (D1 API data or prop data)
+  const cloudData = useRealData && apiData
     ? apiData.map(item => ({
-        tag: item.wordInsight,
-        weight: item.totalCount
+        tag: item.wordInsight || item.word_insight,
+        weight: item.totalCount || item.total_count
       }))
     : data || [];
     

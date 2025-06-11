@@ -3,6 +3,7 @@ import * as am5 from '@amcharts/amcharts5';
 import * as am5wc from '@amcharts/amcharts5/wc';
 import am5themes_Animated from '@amcharts/amcharts5/themes/Animated';
 import { useQuery } from '@tanstack/react-query';
+import { CURRENT_CONFIG } from '@/utils/constants';
 
 interface WordCloudData {
   tag: string;
@@ -24,13 +25,13 @@ const AmChartsWordCloud: React.FC<AmChartsWordCloudProps> = ({
   const chartRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<am5.Root | null>(null);
 
-  // Fetch top 10 insights data
+  // Fetch top 10 insights data from D1 database
   const { data: topInsights, isLoading } = useQuery({
     queryKey: ['/api/insights/top-10'],
     queryFn: async () => {
-      const response = await fetch('https://employee-insights-api.adityalasika.workers.dev/api/insights/top-10');
+      const response = await fetch(`${CURRENT_CONFIG.API_BASE_URL}/api/insights/top-10`);
       if (!response.ok) {
-        throw new Error('Failed to fetch top insights');
+        throw new Error('Failed to fetch top insights from D1 database');
       }
       const data = await response.json();
       return data.data;

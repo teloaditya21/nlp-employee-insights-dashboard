@@ -104,7 +104,7 @@ export class InsightsService {
   }
 
   /**
-   * Get employee insights with filters
+   * Get employee insights with filters from D1 database
    */
   async getEmployeeInsights(filters?: {
     page?: number;
@@ -125,11 +125,12 @@ export class InsightsService {
       if (filters.source) params.source = filters.source;
       if (filters.sentiment) params.sentiment = filters.sentiment;
       if (filters.search) params.search = filters.search;
-      if (filters.dateFrom) params.date_from = filters.dateFrom;
-      if (filters.dateTo) params.date_to = filters.dateTo;
+      if (filters.dateFrom) params.dateFrom = filters.dateFrom;
+      if (filters.dateTo) params.dateTo = filters.dateTo;
     }
 
-    const url = createUrlWithParams(`${this.basePath}/employee`, params);
+    // Use the employee-insights endpoint that connects to D1 database
+    const url = createUrlWithParams('/api/employee-insights/paginated', params);
     return apiClient.get<EmployeeInsight[]>(url);
   }
 
