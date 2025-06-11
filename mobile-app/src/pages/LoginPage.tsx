@@ -1,9 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, memo, useCallback } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { Eye, EyeOff, User, Lock } from 'lucide-react'
 import logoNLP from '../assets/logo-nlp.webp'
 
-export default function LoginPage() {
+const LoginPage = memo(function LoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -11,7 +11,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const { login } = useAuth()
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError('')
@@ -26,17 +26,25 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [username, password, login])
+
+  const togglePasswordVisibility = useCallback(() => {
+    setShowPassword(prev => !prev)
+  }, [])
 
   return (
-    <div className="min-h-screen bg-white flex flex-col p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-teal-50 flex flex-col p-6">
+
+
       {/* Logo - Centered, Larger and Wider */}
       <div className="flex justify-center mb-12">
         <div className="text-center">
           <img
             src={logoNLP}
             alt="NLP Logo"
-            className="w-64 h-40 mx-auto"
+            className="w-72 h-40 mx-auto"
+            loading="eager"
+            decoding="async"
           />
         </div>
       </div>
@@ -47,7 +55,7 @@ export default function LoginPage() {
           {/* Login Title - Left Aligned */}
           <div className="mb-8">
             <h1 className="font-black text-gray-900 mb-3 text-left" style={{ fontSize: '2.5rem', lineHeight: '1' }}>Login</h1>
-            <p className="text-gray-500 text-base text-left">Enter your credentials to login</p>
+            <p className="text-gray-500 text-base text-left">Enter your credentials to access dashboard</p>
           </div>
 
           {/* Login Form */}
@@ -92,18 +100,18 @@ export default function LoginPage() {
               />
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={togglePasswordVisibility}
                 className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors z-10"
               >
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
 
-            {/* Login Button */}
+            {/* Login Button - Mobile Optimized */}
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-4 px-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-bold text-lg hover:from-blue-700 hover:to-purple-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+              className="w-full py-4 px-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-bold text-lg hover:from-blue-700 hover:to-purple-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg touch-manipulation active:scale-95"
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">
@@ -119,7 +127,7 @@ export default function LoginPage() {
           {/* Terms of Service */}
           <div className="mt-8 text-center">
             <p className="text-gray-500 text-sm">
-              By clicking continue, you agree to our{' '}
+              By clicking Login, you agree to our{' '}
               <span className="text-blue-600 font-medium">Terms of Service</span>{' '}
               and{' '}
               <span className="text-blue-600 font-medium">Privacy Policy</span>.
@@ -129,4 +137,6 @@ export default function LoginPage() {
       </div>
     </div>
   )
-}
+})
+
+export default LoginPage

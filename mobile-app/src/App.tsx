@@ -9,6 +9,8 @@ import ErrorBoundary from './components/ErrorBoundary'
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth()
 
+
+
   if (isLoading) {
     return (
       <div className="mobile-container flex items-center justify-center">

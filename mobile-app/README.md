@@ -46,7 +46,7 @@ A mobile-optimized version of the NLP Employee Insights Dashboard, designed spec
 npm run dev:mobile
 ```
 
-The mobile app will be available at `http://localhost:5174/`
+The mobile app will be available at `http://localhost:5175/`
 
 ### Building
 

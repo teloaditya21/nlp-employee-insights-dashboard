@@ -22,12 +22,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const checkAuth = () => {
       const token = localStorage.getItem('mobile_auth_token')
       const loginTime = localStorage.getItem('mobile_login_time')
-      
+
       if (token && loginTime) {
         const now = Date.now()
         const loginTimestamp = parseInt(loginTime)
         const oneMinute = 60 * 1000 // 1 minute in milliseconds
-        
+
         if (now - loginTimestamp < oneMinute) {
           setIsAuthenticated(true)
         } else {
@@ -36,6 +36,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           localStorage.removeItem('mobile_login_time')
           setIsAuthenticated(false)
         }
+      } else {
+        setIsAuthenticated(false)
       }
       setIsLoading(false)
     }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { API_CONFIG } from "@/utils/constants";
 import nlpLogo from "../assets/logo-nlp.webp";
-// Import gambar lokal
+// Lazy load images for better performance
 import techImage1 from "../assets/shubham-dhage-T9rKvI3N0NM-unsplash.jpg";
 import techImage2 from "../assets/shubham-sharan-OC8VNwyE47I-unsplash.jpg";
 import techImage3 from "../assets/markus-spiske-Skf7HxARcoc-unsplash.jpg";
@@ -144,9 +144,9 @@ export default function Login() {
     }
   };
 
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
+  const togglePasswordVisibility = useCallback(() => {
+    setShowPassword(prev => !prev);
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-white">
@@ -163,13 +163,15 @@ export default function Login() {
           <CarouselContent className="h-screen">
             {slides.map((slide, index) => (
               <CarouselItem key={index} className="relative h-full">
-                {/* Background Image */}
-                <div
-                  className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-                  style={{
-                    backgroundImage: `url(${slide.image})`
-                  }}
-                >
+                {/* Background Image with optimized loading */}
+                <div className="absolute inset-0">
+                  <img
+                    src={slide.image}
+                    alt={slide.title}
+                    className="w-full h-full object-cover"
+                    loading={index === 0 ? "eager" : "lazy"}
+                    decoding="async"
+                  />
                   {/* Dark overlay */}
                   <div className="absolute inset-0 bg-black/60" />
 
@@ -211,7 +213,9 @@ export default function Login() {
           <img
             src={nlpLogo}
             alt="NLP Logo"
-            className="h-32 w-40 ml-auto mb-1"
+            className="h-32 w-48 ml-auto mb-1"
+            loading="eager"
+            decoding="async"
           />
           <div className="text-base text-black font-medium tracking-wide">
             MVP VERSION
@@ -293,7 +297,7 @@ export default function Login() {
           </Form>
 
           <p className="text-sm text-center text-gray-500 mt-8">
-            By clicking continue, you agree to our{" "}
+            By clicking Login, you agree to our{" "}
             <span className="text-blue-600 font-medium">Terms of Service</span>{" "}
             and{" "}
             <span className="text-blue-600 font-medium">Privacy Policy</span>.

@@ -89,7 +89,7 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    port: 5174,
+    port: 5175,
     host: true
   },
   base: '/mobile/'
@@ -202,14 +202,14 @@ echo "✅ Mobile app deployed successfully!"
 1. **Desktop Browser**:
    ```bash
    npm run dev:mobile
-   # Open http://localhost:5174/
+   # Open http://localhost:5175/
    # Use browser dev tools mobile simulation
    ```
 
 2. **Mobile Device**:
    ```bash
    npm run dev:mobile
-   # Access via network IP: http://192.168.1.x:5174/
+   # Access via network IP: http://192.168.1.x:5175/
    ```
 
 ### Browser Support
