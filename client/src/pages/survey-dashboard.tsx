@@ -38,10 +38,20 @@ import {
 export default function SurveyDashboard() {
   // Filter state - search term dan filter baru
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>("");
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [selectedSentiment, setSelectedSentiment] = useState<string>("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+
+  // Debounce search term to prevent excessive API calls
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500); // 500ms debounce delay
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
 
   // Prepare filters for API
   const apiFilters = useMemo(() => {
@@ -56,8 +66,8 @@ export default function SurveyDashboard() {
       }
     }
 
-    if (searchTerm) {
-      filters.search = searchTerm;
+    if (debouncedSearchTerm) {
+      filters.search = debouncedSearchTerm;
     }
 
     if (selectedSentiment !== 'all') {
@@ -65,10 +75,10 @@ export default function SurveyDashboard() {
     }
 
     return filters;
-  }, [dateRange, searchTerm, selectedSentiment]);
+  }, [dateRange, debouncedSearchTerm, selectedSentiment]);
 
   // Determine if we should use filtered data
-  const hasFilters = Boolean(dateRange?.from || searchTerm || selectedSentiment !== 'all');
+  const hasFilters = Boolean(dateRange?.from || debouncedSearchTerm || selectedSentiment !== 'all');
 
   // Fetch data menggunakan custom hooks
   const dashboard = useDashboardStats();
@@ -132,8 +142,8 @@ export default function SurveyDashboard() {
 
           // Determine active filter descriptions for AI context
           const activeFilterDescriptions = [];
-          if (searchTerm.length > 0) {
-            activeFilterDescriptions.push(`pencarian "${searchTerm}"`);
+          if (debouncedSearchTerm.length > 0) {
+            activeFilterDescriptions.push(`pencarian "${debouncedSearchTerm}"`);
           }
           if (selectedTopics.length > 0) {
             activeFilterDescriptions.push(`topik: ${selectedTopics.join(', ')}`);
@@ -151,7 +161,7 @@ export default function SurveyDashboard() {
           // Track the current page data with enhanced filter context
           trackPageData({
             filters: {
-              search: searchTerm,
+              search: debouncedSearchTerm,
               selectedTopics: selectedTopics,
               selectedSentiment: selectedSentiment,
               dateRange: dateRange?.from ? (dateRange.to
@@ -174,7 +184,7 @@ export default function SurveyDashboard() {
   }, [
     dashboard.data,
     currentInsights.data,
-    searchTerm,
+    debouncedSearchTerm,
     selectedTopics,
     selectedSentiment,
     dateRange,
@@ -271,15 +281,15 @@ export default function SurveyDashboard() {
     localStorage.setItem('pinnedInsights', JSON.stringify(pinnedInsights));
   };
 
-  // Search handler
-  const handleSearchChange = (value: string) => {
+  // Search handler with proper debouncing
+  const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value);
-  };
+  }, []);
 
   // Clear search
-  const handleClearSearch = () => {
+  const handleClearSearch = useCallback(() => {
     setSearchTerm("");
-  };
+  }, []);
 
   // Get unique topics untuk filter checkbox
   const uniqueTopics = useMemo(() => {
@@ -417,10 +427,17 @@ export default function SurveyDashboard() {
                 placeholder="Cari insights... (contoh: wellness, gaji, fasilitas, program mentoring)"
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
+                onKeyDown={(e) => {
+                  // Prevent form submission on Enter key
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                  }
+                }}
                 className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
               {searchTerm && (
                 <button
+                  type="button"
                   onClick={handleClearSearch}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >

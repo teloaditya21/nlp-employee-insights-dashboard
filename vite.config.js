@@ -14,6 +14,18 @@ export default defineConfig(({ command, mode }) => {
         '@': path.resolve(__dirname, './client/src')
       },
     },
+    optimizeDeps: {
+      force: true,
+      include: [
+        'react',
+        'react-dom',
+        '@tanstack/react-query',
+        'lucide-react',
+        'date-fns',
+        'react-day-picker'
+      ],
+      exclude: []
+    },
     server: {
       port: 5173,
       proxy: {

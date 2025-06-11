@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import Header from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
 import AIConclusion from "@/components/AIConclusion";
@@ -230,6 +230,7 @@ export default function TopInsights() {
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedKota, setSelectedKota] = useState("all");
   const [selectedSource, setSelectedSource] = useState("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -243,6 +244,19 @@ export default function TopInsights() {
     trackPageData,
     error: pageContextError
   } = usePageContext('top-insights');
+
+  // Debounce search term to prevent excessive API calls
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      // Reset to first page when search changes
+      if (searchTerm !== debouncedSearchTerm) {
+        setPage(1);
+      }
+    }, 500); // 500ms debounce delay
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, debouncedSearchTerm]);
 
   // Default date range (last 30 days)
   const today = new Date();
@@ -267,7 +281,7 @@ export default function TopInsights() {
 
   // Fetch data from employee_insights table with pagination and filters
   const { data: insightsData, isLoading } = useQuery({
-    queryKey: ['/api/employee-insights/paginated', page, searchTerm, selectedKota, selectedSource, dateRange],
+    queryKey: ['/api/employee-insights/paginated', page, debouncedSearchTerm, selectedKota, selectedSource, dateRange],
     queryFn: async () => {
       const limit = 10; // Display 10 insights per page
       const params = new URLSearchParams({
@@ -276,7 +290,7 @@ export default function TopInsights() {
       });
 
       // Add filter parameters
-      if (searchTerm) params.append('search', searchTerm);
+      if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
       if (selectedKota !== 'all') params.append('kota', selectedKota);
       if (selectedSource !== 'all') params.append('source', selectedSource);
       if (dateRange?.from) params.append('dateFrom', dateRange.from.toISOString().split('T')[0]);
@@ -291,6 +305,10 @@ export default function TopInsights() {
       const data = await response.json();
       return data;
     },
+    staleTime: 30 * 1000, // 30 seconds - data stays fresh
+    gcTime: 5 * 60 * 1000, // 5 minutes - cache time
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    enabled: true, // Always enabled
   });
 
   // Process kota summary data for map
@@ -433,8 +451,8 @@ export default function TopInsights() {
 
           // Determine active filter descriptions for AI context
           const activeFilterDescriptions = [];
-          if (searchTerm.length > 0) {
-            activeFilterDescriptions.push(`pencarian "${searchTerm}"`);
+          if (debouncedSearchTerm.length > 0) {
+            activeFilterDescriptions.push(`pencarian "${debouncedSearchTerm}"`);
           }
           if (selectedKota !== "all") {
             activeFilterDescriptions.push(`kota: ${selectedKota}`);
@@ -459,7 +477,7 @@ export default function TopInsights() {
           // Track the current page data with enhanced filter context
           trackPageData({
             filters: {
-              search: searchTerm,
+              search: debouncedSearchTerm,
               kota: selectedKota,
               source: selectedSource,
               dateRange: dateRangeDisplay,
@@ -479,18 +497,18 @@ export default function TopInsights() {
     return () => clearTimeout(timeoutId);
   }, [
     insightsData,
-    searchTerm,
+    debouncedSearchTerm,
     selectedKota,
     selectedSource,
     dateRange,
     trackPageData
   ]);
 
-  // Filter handlers
-  const handleSearchChange = (value: string) => {
+  // Filter handlers with proper debouncing
+  const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value);
-    setPage(1); // Reset to first page when filtering
-  };
+    // Don't reset page immediately, let debounced effect handle it
+  }, []);
 
   const handleKotaChange = (value: string) => {
     setSelectedKota(value);
@@ -515,10 +533,10 @@ export default function TopInsights() {
     setPage(1);
   };
 
-  const handleClearSearch = () => {
+  const handleClearSearch = useCallback(() => {
     setSearchTerm("");
-    setPage(1);
-  };
+    // Page will be reset by debounced effect
+  }, []);
 
   if (isLoading) {
     return <TopInsightsSkeleton />;
@@ -553,10 +571,17 @@ export default function TopInsights() {
                 placeholder="Cari insights... (contoh: wellness, asuransi, program)"
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
+                onKeyDown={(e) => {
+                  // Prevent form submission on Enter key
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                  }
+                }}
                 className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               {searchTerm && (
                 <button
+                  type="button"
                   onClick={handleClearSearch}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >

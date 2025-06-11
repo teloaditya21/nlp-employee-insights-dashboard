@@ -3,7 +3,7 @@ import { SentimentCategoryCard, InsightData } from "@/components/cards/insight-c
 import Chatbot from "@/components/dashboard/chatbot";
 import { useQuery } from "@tanstack/react-query";
 import { X, ChevronDown, Filter, CalendarIcon } from "lucide-react";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
@@ -43,10 +43,20 @@ export default function MyInsights() {
 
   // State untuk search dan filter
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>("");
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [selectedSentiment, setSelectedSentiment] = useState<string>("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+
+  // Debounce search term to prevent excessive filtering
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500); // 500ms debounce delay
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
 
   // Get unique topics dari bookmarked insights untuk filter
   const uniqueTopics = useMemo(() => {
@@ -81,10 +91,10 @@ export default function MyInsights() {
       });
     }
 
-    // Filter berdasarkan search term
-    if (searchTerm.length > 0) {
+    // Filter berdasarkan search term (using debounced search)
+    if (debouncedSearchTerm.length > 0) {
       filteredBookmarks = filteredBookmarks.filter(bookmark =>
-        bookmark.insight_title.toLowerCase().includes(searchTerm.toLowerCase())
+        bookmark.insight_title.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
       );
     }
 
@@ -130,17 +140,17 @@ export default function MyInsights() {
     categorized.neutral.sort((a, b) => b.views - a.views);
 
     return categorized;
-  }, [bookmarkedInsights, searchTerm, selectedTopics, selectedSentiment, dateRange]);
+  }, [bookmarkedInsights, debouncedSearchTerm, selectedTopics, selectedSentiment, dateRange]);
 
-  // Search handler
-  const handleSearchChange = (value: string) => {
+  // Search handler with proper debouncing
+  const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value);
-  };
+  }, []);
 
   // Clear search
-  const handleClearSearch = () => {
+  const handleClearSearch = useCallback(() => {
     setSearchTerm("");
-  };
+  }, []);
 
   // Handler untuk topic filter
   const handleTopicToggle = (topic: string) => {
@@ -261,10 +271,17 @@ export default function MyInsights() {
                 placeholder="Cari bookmarked insights..."
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
+                onKeyDown={(e) => {
+                  // Prevent form submission on Enter key
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                  }
+                }}
                 className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
               {searchTerm && (
                 <button
+                  type="button"
                   onClick={handleClearSearch}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >

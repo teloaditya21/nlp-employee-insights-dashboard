@@ -213,7 +213,7 @@ export default function Login() {
           <img
             src={nlpLogo}
             alt="NLP Logo"
-            className="h-32 w-48 ml-auto mb-1"
+            className="h-32 w-64 ml-auto mb-1"
             loading="eager"
             decoding="async"
           />

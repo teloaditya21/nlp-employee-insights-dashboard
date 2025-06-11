@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import Header from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
@@ -73,9 +73,23 @@ interface AnalyticsData {
 export default function SmartAnalytics() {
   // Filter state
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedWitel, setSelectedWitel] = useState("all");
   const [selectedSource, setSelectedSource] = useState("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
+
+  // Debounce search term to prevent excessive API calls
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      // Reset to first page when search changes
+      if (searchTerm !== debouncedSearchTerm) {
+        setPage(1);
+      }
+    }, 500); // 500ms debounce delay
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, debouncedSearchTerm]);
 
   // State untuk paginasi
   const [page, setPage] = useState(1);
@@ -113,7 +127,7 @@ export default function SmartAnalytics() {
 
   // Query untuk data employee insights dengan paginasi dan filter
   const { data: employeeInsightsResponse, isLoading: isLoadingInsights } = useQuery({
-    queryKey: ['employee-insights-paginated', page, searchTerm, selectedWitel, selectedSource, dateRange],
+    queryKey: ['employee-insights-paginated', page, debouncedSearchTerm, selectedWitel, selectedSource, dateRange],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -121,7 +135,7 @@ export default function SmartAnalytics() {
       });
 
       // Add filter parameters
-      if (searchTerm) params.append('search', searchTerm);
+      if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
       if (selectedWitel !== 'all') params.append('kota', selectedWitel); // API uses 'kota' parameter for witel filter
       if (selectedSource !== 'all') params.append('source', selectedSource);
       if (dateRange?.from) params.append('dateFrom', dateRange.from.toISOString().split('T')[0]);
@@ -182,11 +196,11 @@ export default function SmartAnalytics() {
 
   const COLORS = ["#00B894", "#FF7675", "#FDCB6E"];
 
-  // Filter handlers
-  const handleSearchChange = (value: string) => {
+  // Filter handlers with proper debouncing
+  const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value);
-    setPage(1); // Reset to first page when searching
-  };
+    // Page will be reset by debounced effect
+  }, []);
 
   const handleWitelChange = (value: string) => {
     setSelectedWitel(value);
@@ -203,10 +217,10 @@ export default function SmartAnalytics() {
     setPage(1); // Reset to first page when filtering
   };
 
-  const handleClearSearch = () => {
+  const handleClearSearch = useCallback(() => {
     setSearchTerm("");
-    setPage(1);
-  };
+    // Page will be reset by debounced effect
+  }, []);
 
   const handleResetFilters = () => {
     setSearchTerm("");
@@ -217,7 +231,7 @@ export default function SmartAnalytics() {
   };
 
   // Check if any filters are active
-  const hasActiveFilters = searchTerm || selectedWitel !== "all" || selectedSource !== "all" || dateRange;
+  const hasActiveFilters = debouncedSearchTerm || selectedWitel !== "all" || selectedSource !== "all" || dateRange;
 
   // Track page data untuk AI conclusion ketika data atau filter berubah
   useEffect(() => {
@@ -394,10 +408,17 @@ export default function SmartAnalytics() {
                   placeholder="Cari insights... (contoh: wellness, gaji, fasilitas)"
                   value={searchTerm}
                   onChange={(e) => handleSearchChange(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Prevent form submission on Enter key
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                    }
+                  }}
                   className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 {searchTerm && (
                   <button
+                    type="button"
                     onClick={handleClearSearch}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >

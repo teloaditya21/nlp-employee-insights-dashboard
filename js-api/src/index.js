@@ -469,15 +469,37 @@ app.get('/api/insights/search/:word', async (c) => {
     const word = c.req.param('word');
     const db = c.env.DB;
 
-    const { results } = await db.prepare(`
-      SELECT
-        id, wordInsight as word_insight, total_count, positif_count,
-        negatif_count, netral_count, positif_percentage, negatif_percentage,
-        netral_percentage, created_at
-      FROM insight_summary
-      WHERE wordInsight LIKE ?1
-      ORDER BY total_count DESC
-    `).bind(`%${word}%`).all();
+    // Improved search with multiple term support
+    const searchTerms = word.toLowerCase().split(' ').filter(term => term.length > 2);
+    let results;
+
+    if (searchTerms.length > 0) {
+      const conditions = searchTerms.map((_, index) => `LOWER(wordInsight) LIKE ?${index + 1}`);
+      const query = `
+        SELECT
+          id, wordInsight as word_insight, total_count, positif_count,
+          negatif_count, netral_count, positif_percentage, negatif_percentage,
+          netral_percentage, created_at
+        FROM insight_summary
+        WHERE (${conditions.join(' AND ')})
+        ORDER BY total_count DESC`;
+
+      const bindParams = searchTerms.map(term => `%${term}%`);
+      const queryResult = await db.prepare(query).bind(...bindParams).all();
+      results = queryResult.results;
+    } else {
+      // Fallback to original search if no valid terms
+      const query = `
+        SELECT
+          id, wordInsight as word_insight, total_count, positif_count,
+          negatif_count, netral_count, positif_percentage, negatif_percentage,
+          netral_percentage, created_at
+        FROM insight_summary
+        WHERE LOWER(wordInsight) LIKE ?1
+        ORDER BY total_count DESC`;
+      const queryResult = await db.prepare(query).bind(`%${word.toLowerCase()}%`).all();
+      results = queryResult.results;
+    }
 
     return c.json({
       success: true,
@@ -622,9 +644,25 @@ app.get('/api/insights/filtered', async (c) => {
     let paramIndex = 1;
 
     if (search) {
-      whereConditions.push(`(sentenceInsight LIKE ?${paramIndex} OR originalInsight LIKE ?${paramIndex} OR wordInsight LIKE ?${paramIndex})`);
-      bindParams.push(`%${search}%`);
-      paramIndex++;
+      // Improved search algorithm with better precision
+      const searchTerms = search.toLowerCase().split(' ').filter(term => term.length > 2);
+      if (searchTerms.length > 0) {
+        const searchConditions = searchTerms.map(() => {
+          const condition = `(
+            LOWER(sentenceInsight) LIKE ?${paramIndex} OR
+            LOWER(originalInsight) LIKE ?${paramIndex} OR
+            LOWER(wordInsight) LIKE ?${paramIndex} OR
+            LOWER(employeeName) LIKE ?${paramIndex} OR
+            LOWER(sourceData) LIKE ?${paramIndex}
+          )`;
+          paramIndex++;
+          return condition;
+        });
+        whereConditions.push(`(${searchConditions.join(' AND ')})`);
+        searchTerms.forEach(term => {
+          bindParams.push(`%${term}%`);
+        });
+      }
     }
 
     if (sentiment && sentiment !== 'all') {
@@ -778,9 +816,25 @@ app.get('/api/employee-insights/paginated', async (c) => {
     let paramIndex = 1;
 
     if (search) {
-      whereConditions.push(`(sentenceInsight LIKE ?${paramIndex} OR originalInsight LIKE ?${paramIndex} OR wordInsight LIKE ?${paramIndex})`);
-      bindParams.push(`%${search}%`);
-      paramIndex++;
+      // Improved search algorithm with better precision
+      const searchTerms = search.toLowerCase().split(' ').filter(term => term.length > 2);
+      if (searchTerms.length > 0) {
+        const searchConditions = searchTerms.map(() => {
+          const condition = `(
+            LOWER(sentenceInsight) LIKE ?${paramIndex} OR
+            LOWER(originalInsight) LIKE ?${paramIndex} OR
+            LOWER(wordInsight) LIKE ?${paramIndex} OR
+            LOWER(employeeName) LIKE ?${paramIndex} OR
+            LOWER(sourceData) LIKE ?${paramIndex}
+          )`;
+          paramIndex++;
+          return condition;
+        });
+        whereConditions.push(`(${searchConditions.join(' AND ')})`);
+        searchTerms.forEach(term => {
+          bindParams.push(`%${term}%`);
+        });
+      }
     }
 
     if (kota) {
