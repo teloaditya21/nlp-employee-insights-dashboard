@@ -1,9 +1,10 @@
-import React, { useLayoutEffect, useRef } from 'react'
+import React, { useLayoutEffect, useRef, memo } from 'react'
 import * as am5 from '@amcharts/amcharts5'
 import * as am5wc from '@amcharts/amcharts5/wc'
 import am5themes_Animated from '@amcharts/amcharts5/themes/Animated'
+import { useMobileWordCloudData } from '../hooks/useOptimizedMobileQuery'
 
-interface WordCloudData {
+export interface WordCloudData {
   tag: string
   weight: number
   sentiment?: 'positive' | 'negative' | 'neutral'
@@ -15,7 +16,7 @@ interface MobileWordCloudProps {
   height?: string
 }
 
-export default function MobileWordCloud({
+const MobileWordCloud = memo(function MobileWordCloud({
   title = "🔥 Trending Topics",
   width = '100%',
   height = '300px'
@@ -23,36 +24,11 @@ export default function MobileWordCloud({
   const chartRef = useRef<HTMLDivElement>(null)
   const rootRef = useRef<am5.Root | null>(null)
 
-  // Fetch top 10 insights data
-  const [topInsights, setTopInsights] = React.useState<WordCloudData[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
-
-  React.useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch('https://employee-insights-api.adityalasika.workers.dev/api/insights/top-10')
-        if (!response.ok) {
-          throw new Error('Failed to fetch top insights')
-        }
-        const data = await response.json()
-
-        // Transform data to word cloud format
-        const wordCloudData = data.data.map((insight: any) => ({
-          tag: insight.word_insight,
-          weight: insight.total_count,
-          sentiment: insight.dominant_sentiment
-        }))
-
-        setTopInsights(wordCloudData)
-      } catch (error) {
-        console.error('Error fetching word cloud data:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchData()
-  }, [])
+  // Use optimized mobile query hook
+  const { data: topInsights = [], isLoading } = useMobileWordCloudData() as {
+    data: WordCloudData[]
+    isLoading: boolean
+  }
 
   useLayoutEffect(() => {
     if (!chartRef.current || isLoading || !topInsights.length) return
@@ -84,8 +60,7 @@ export default function MobileWordCloud({
       maxFontSize: am5.percent(12),
       minFontSize: am5.percent(4),
       maxCount: 10,
-      angles: [0, 0, 0, 0, 90, 90], // Mix of horizontal and vertical text
-      rotationThreshold: 0.5
+      angles: [0, 0, 0, 0, 90, 90] // Mix of horizontal and vertical text
     }))
 
     // Configure labels
@@ -119,26 +94,26 @@ export default function MobileWordCloud({
       return fill
     })
 
-    // Add hover effects
-    series.labels.template.on("pointerover", function(ev) {
-      const target = ev.target
-      target.animate({
-        key: "scale",
-        to: 1.2,
-        duration: 200,
-        easing: am5.ease.out(am5.ease.cubic)
-      })
-    })
+    // Add hover effects (commented out due to TypeScript issues)
+    // series.labels.template.onPrivate("pointerover", function(ev) {
+    //   const target = ev.target
+    //   target.animate({
+    //     key: "scale",
+    //     to: 1.2,
+    //     duration: 200,
+    //     easing: am5.ease.out(am5.ease.cubic)
+    //   })
+    // })
 
-    series.labels.template.on("pointerout", function(ev) {
-      const target = ev.target
-      target.animate({
-        key: "scale",
-        to: 1,
-        duration: 200,
-        easing: am5.ease.out(am5.ease.cubic)
-      })
-    })
+    // series.labels.template.onPrivate("pointerout", function(ev) {
+    //   const target = ev.target
+    //   target.animate({
+    //     key: "scale",
+    //     to: 1,
+    //     duration: 200,
+    //     easing: am5.ease.out(am5.ease.cubic)
+    //   })
+    // })
 
     // Set tooltip
     series.labels.template.set("tooltipText", "{tag}: {weight} mentions ({sentiment})")
@@ -198,4 +173,6 @@ export default function MobileWordCloud({
       </div>
     </div>
   )
-}
+})
+
+export default MobileWordCloud

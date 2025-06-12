@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { memo, useCallback } from 'react'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
-import { useLocation } from 'wouter'
+import { useRouter } from 'next/navigation'
+import { useMobileTopInsights } from '../hooks/useOptimizedMobileQuery'
+import { useMobileTouchOptimized } from '../hooks/useOptimizedMobileDebounce'
 
 interface TopInsightData {
   id: string
@@ -15,32 +17,17 @@ interface MobileTopInsightsProps {
   title?: string
 }
 
-export default function MobileTopInsights({ title = "Trending Insights" }: MobileTopInsightsProps) {
-  const [insights, setInsights] = useState<TopInsightData[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [, setLocation] = useLocation()
+const MobileTopInsights = memo(function MobileTopInsights({ title = "Trending Insights" }: MobileTopInsightsProps) {
+  const router = useRouter()
+  const { touchHandlers } = useMobileTouchOptimized()
 
-  // Fetch top insights data
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch('https://employee-insights-api.adityalasika.workers.dev/api/insights/top-10')
-        if (!response.ok) {
-          throw new Error('Failed to fetch top insights')
-        }
-        const data = await response.json()
-        setInsights(data.data)
-      } catch (error) {
-        console.error('Error fetching top insights:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
+  // Use optimized mobile query hook
+  const { data: insights = [], isLoading } = useMobileTopInsights() as {
+    data: TopInsightData[]
+    isLoading: boolean
+  }
 
-    fetchData()
-  }, [])
-
-  const getSentimentIcon = (sentiment: string) => {
+  const getSentimentIcon = useCallback((sentiment: string) => {
     switch (sentiment) {
       case 'positive':
         return <TrendingUp className="h-4 w-4 text-green-500" />
@@ -49,9 +36,9 @@ export default function MobileTopInsights({ title = "Trending Insights" }: Mobil
       default:
         return <Minus className="h-4 w-4 text-gray-500" />
     }
-  }
+  }, [])
 
-  const getSentimentColor = (sentiment: string) => {
+  const getSentimentColor = useCallback((sentiment: string) => {
     switch (sentiment) {
       case 'positive':
         return 'text-green-600'
@@ -60,21 +47,21 @@ export default function MobileTopInsights({ title = "Trending Insights" }: Mobil
       default:
         return 'text-gray-600'
     }
-  }
+  }, [])
 
-  const formatEmployeeName = (name: string) => {
-    if (!name || name.length === 0) return 'Unknown'
-    if (name.length === 1) return name + '*****'
-    return name.charAt(0) + '*****'
-  }
+  // const formatEmployeeName = (name: string) => {
+  //   if (!name || name.length === 0) return 'Unknown'
+  //   if (name.length === 1) return name + '*****'
+  //   return name.charAt(0) + '*****'
+  // }
 
-  const handleInsightClick = (insight: TopInsightData) => {
+  const handleInsightClick = useCallback((insight: TopInsightData) => {
     console.log('Insight clicked:', insight.word_insight)
     // Store the selected insight word in localStorage for the detail page
     localStorage.setItem('selectedInsightWord', insight.word_insight)
     // Navigate to the detail page
-    setLocation('/insight-detail?word=' + encodeURIComponent(insight.word_insight))
-  }
+    router.push('/insight-detail?word=' + encodeURIComponent(insight.word_insight))
+  }, [router])
 
   if (isLoading) {
     return (
@@ -129,8 +116,9 @@ export default function MobileTopInsights({ title = "Trending Insights" }: Mobil
         {insights.map((insight, index) => (
           <div
             key={insight.id}
-            className="p-4 hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
+            className="p-4 hover:bg-gray-50 active:bg-gray-100 transition-colors duration-150 cursor-pointer touch-manipulation"
             onClick={() => handleInsightClick(insight)}
+            {...touchHandlers}
           >
             {/* Header */}
             <div className="flex items-start justify-between mb-2">
@@ -179,4 +167,6 @@ export default function MobileTopInsights({ title = "Trending Insights" }: Mobil
       </div>
     </div>
   )
-}
+})
+
+export default MobileTopInsights

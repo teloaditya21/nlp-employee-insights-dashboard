@@ -1,0 +1,104 @@
+<svg width="500" height="500" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+  <!-- Main brain shape with gradient -->
+  <defs>
+    <linearGradient id="brainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#47CFFF" />
+      <stop offset="100%" stop-color="#0F6CD6" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Brain shape -->
+  <path d="M250,140 C300,100 350,120 380,160 C410,200 410,250 380,290 C350,330 340,350 340,380 
+           C340,410 320,430 290,440 C260,450 240,450 210,440 C180,430 160,410 160,380 
+           C160,350 150,330 120,290 C90,250 90,200 120,160 C150,120 200,100 250,140 Z" 
+    fill="url(#brainGradient)" />
+  
+  <!-- Neural connection dots and lines -->
+  <!-- Left side connections -->
+  <circle cx="80" cy="150" r="4" fill="#47CFFF" />
+  <circle cx="100" cy="100" r="4" fill="#47CFFF" />
+  <circle cx="140" cy="80" r="4" fill="#47CFFF" />
+  <circle cx="70" cy="200" r="4" fill="#47CFFF" />
+  <circle cx="50" cy="250" r="4" fill="#47CFFF" />
+  <circle cx="60" cy="300" r="4" fill="#47CFFF" />
+  <circle cx="90" cy="350" r="4" fill="#47CFFF" />
+  <circle cx="130" cy="370" r="4" fill="#47CFFF" />
+  
+  <!-- Right side connections -->
+  <circle cx="420" cy="150" r="4" fill="#47CFFF" />
+  <circle cx="400" cy="100" r="4" fill="#47CFFF" />
+  <circle cx="360" cy="80" r="4" fill="#47CFFF" />
+  <circle cx="430" cy="200" r="4" fill="#47CFFF" />
+  <circle cx="450" cy="250" r="4" fill="#47CFFF" />
+  <circle cx="440" cy="300" r="4" fill="#47CFFF" />
+  <circle cx="410" cy="350" r="4" fill="#47CFFF" />
+  <circle cx="370" cy="370" r="4" fill="#47CFFF" />
+  
+  <!-- Bottom connections -->
+  <circle cx="220" cy="450" r="4" fill="#47CFFF" />
+  <circle cx="250" cy="460" r="4" fill="#47CFFF" />
+  <circle cx="280" cy="450" r="4" fill="#47CFFF" />
+  <circle cx="200" cy="420" r="4" fill="#47CFFF" />
+  <circle cx="300" cy="420" r="4" fill="#47CFFF" />
+  
+  <!-- Top connections -->
+  <circle cx="220" cy="60" r="4" fill="#47CFFF" />
+  <circle cx="250" cy="40" r="4" fill="#47CFFF" />
+  <circle cx="280" cy="60" r="4" fill="#47CFFF" />
+  <circle cx="200" cy="80" r="4" fill="#47CFFF" />
+  <circle cx="300" cy="80" r="4" fill="#47CFFF" />
+  
+  <!-- Connection lines left side -->
+  <line x1="120" y1="160" x2="80" y2="150" stroke="#47CFFF" stroke-width="1" />
+  <line x1="140" y1="120" x2="100" y2="100" stroke="#47CFFF" stroke-width="1" />
+  <line x1="160" y1="100" x2="140" y2="80" stroke="#47CFFF" stroke-width="1" />
+  <line x1="110" y1="200" x2="70" y2="200" stroke="#47CFFF" stroke-width="1" />
+  <line x1="100" y1="250" x2="50" y2="250" stroke="#47CFFF" stroke-width="1" />
+  <line x1="110" y1="290" x2="60" y2="300" stroke="#47CFFF" stroke-width="1" />
+  <line x1="120" y1="320" x2="90" y2="350" stroke="#47CFFF" stroke-width="1" />
+  <line x1="150" y1="350" x2="130" y2="370" stroke="#47CFFF" stroke-width="1" />
+  
+  <!-- Connection lines right side -->
+  <line x1="380" y1="160" x2="420" y2="150" stroke="#47CFFF" stroke-width="1" />
+  <line x1="360" y1="120" x2="400" y2="100" stroke="#47CFFF" stroke-width="1" />
+  <line x1="340" y1="100" x2="360" y2="80" stroke="#47CFFF" stroke-width="1" />
+  <line x1="390" y1="200" x2="430" y2="200" stroke="#47CFFF" stroke-width="1" />
+  <line x1="400" y1="250" x2="450" y2="250" stroke="#47CFFF" stroke-width="1" />
+  <line x1="390" y1="290" x2="440" y2="300" stroke="#47CFFF" stroke-width="1" />
+  <line x1="380" y1="320" x2="410" y2="350" stroke="#47CFFF" stroke-width="1" />
+  <line x1="350" y1="350" x2="370" y2="370" stroke="#47CFFF" stroke-width="1" />
+  
+  <!-- Connection lines bottom -->
+  <line x1="210" y1="440" x2="220" y2="450" stroke="#47CFFF" stroke-width="1" />
+  <line x1="250" y1="440" x2="250" y2="460" stroke="#47CFFF" stroke-width="1" />
+  <line x1="290" y1="440" x2="280" y2="450" stroke="#47CFFF" stroke-width="1" />
+  <line x1="190" y1="410" x2="200" y2="420" stroke="#47CFFF" stroke-width="1" />
+  <line x1="310" y1="410" x2="300" y2="420" stroke="#47CFFF" stroke-width="1" />
+  
+  <!-- Connection lines top -->
+  <line x1="230" y1="140" x2="220" y2="60" stroke="#47CFFF" stroke-width="1" />
+  <line x1="250" y1="140" x2="250" y2="40" stroke="#47CFFF" stroke-width="1" />
+  <line x1="270" y1="140" x2="280" y2="60" stroke="#47CFFF" stroke-width="1" />
+  <line x1="210" y1="150" x2="200" y2="80" stroke="#47CFFF" stroke-width="1" />
+  <line x1="290" y1="150" x2="300" y2="80" stroke="#47CFFF" stroke-width="1" />
+  
+  <!-- Additional neural connections inside the brain -->
+  <circle cx="200" cy="180" r="3" fill="#FFF" opacity="0.7" />
+  <circle cx="220" cy="200" r="3" fill="#FFF" opacity="0.7" />
+  <circle cx="250" cy="190" r="3" fill="#FFF" opacity="0.7" />
+  <circle cx="280" cy="200" r="3" fill="#FFF" opacity="0.7" />
+  <circle cx="300" cy="180" r="3" fill="#FFF" opacity="0.7" />
+  <circle cx="210" cy="230" r="3" fill="#FFF" opacity="0.7" />
+  <circle cx="250" cy="250" r="3" fill="#FFF" opacity="0.7" />
+  <circle cx="290" cy="230" r="3" fill="#FFF" opacity="0.7" />
+  <circle cx="230" cy="270" r="3" fill="#FFF" opacity="0.7" />
+  <circle cx="270" cy="270" r="3" fill="#FFF" opacity="0.7" />
+  <circle cx="250" cy="300" r="3" fill="#FFF" opacity="0.7" />
+  <circle cx="220" cy="320" r="3" fill="#FFF" opacity="0.7" />
+  <circle cx="280" cy="320" r="3" fill="#FFF" opacity="0.7" />
+  
+  <!-- Light reflection/highlights -->
+  <ellipse cx="220" cy="170" rx="30" ry="20" fill="#FFF" opacity="0.2" />
+  <ellipse cx="280" cy="190" rx="25" ry="15" fill="#FFF" opacity="0.15" />
+  <ellipse cx="250" cy="220" rx="40" ry="30" fill="#FFF" opacity="0.1" />
+</svg>
